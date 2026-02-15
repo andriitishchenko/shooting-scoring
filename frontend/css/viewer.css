@@ -44,7 +44,7 @@
 
 .leaderboard-row {
     display: grid;
-    grid-template-columns: 80px 120px 1fr 150px;
+    grid-template-columns: 80px 120px 1fr auto 150px;
     gap: var(--spacing-lg);
     padding: var(--spacing-lg);
     background: rgba(255, 255, 255, 0.05);
@@ -90,6 +90,24 @@
     font-weight: 700;
     text-align: right;
     color: #4CAF50;
+}
+
+.score-info {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.x-count{
+    font-size: var(--font-lg);
+    color: #2196F3;
+    margin-left: var(--spacing-sm);
+}
+
+.ten-count{
+    font-size: var(--font-lg);
+    color: #FF9800;
+    margin-left: var(--spacing-sm);
 }
 
 /* Auto-scroll animation */

@@ -105,15 +105,14 @@ function renderLeaderboard(grouped) {
     
     sortedGroups.forEach(([groupKey, entries]) => {
         if (!entries || entries.length === 0) return;
-        
-        const [gender, shootingType] = groupKey.split('_');
+        const titleArray = groupKey.split('_');
         
         const groupDiv = document.createElement('div');
         groupDiv.className = 'leaderboard-group';
         
         const title = document.createElement('div');
         title.className = 'group-title';
-        title.textContent = formatGroupTitle(gender, shootingType);
+        title.textContent = formatGroupTitle(titleArray);
         groupDiv.appendChild(title);
         
         const table = document.createElement('div');
@@ -131,6 +130,7 @@ function renderLeaderboard(grouped) {
                 <div class="position">${index + 1}</div>
                 <div class="lane-shift">${entry.lane_shift}</div>
                 <div class="name">${entry.name}</div>
+                <div class="score-info"><span class="x-count">X-${entry.x_count}</span> <span class="ten-count">10-${entry.ten_count}</span></div>
                 <div class="score">${entry.total_score}</div>
             `;
             
@@ -142,21 +142,17 @@ function renderLeaderboard(grouped) {
     });
 }
 
-function formatGroupTitle(gender, shootingType) {
-    const genderMap = {
+function formatGroupTitle(titleArray) {
+    const generalMap = {
         'male': 'MEN',
         'female': 'WOMEN',
-        'unknown': 'UNSPECIFIED'
-    };
-    
-    const shootingMap = {
+        'unknown': 'UNSPECIFIED',
         'compound': 'COMPOUND BOW',
         'barebow': 'BAREBOW',
-        'olympic': 'OLYMPIC',
-        'unknown': 'UNSPECIFIED'
+        'olympic': 'OLYMPIC'
     };
     
-    return `${genderMap[gender] || gender} - ${shootingMap[shootingType] || shootingType}`;
+    return titleArray.map(item => generalMap[item] || item).join(' - ');
 }
 
 function startAutoScroll() {
