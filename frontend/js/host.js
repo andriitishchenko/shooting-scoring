@@ -284,6 +284,9 @@ function renderParticipants(participants) {
                             <button class="btn-edit-inline" onclick="editParticipant(${p.id})" title="Edit">
                                 ✎ Edit
                             </button>
+                            <button class="btn btn-sm btn-danger" onclick="removeParticipant(${p.id})" title="Remove">
+                                🗑️ Remove
+                            </button>
                         </div>
                     `).join('')}
                 </div>
@@ -406,6 +409,25 @@ async function submitParticipant(e) {
     } catch (error) {
         console.error('Error submitting participant:', error);
         alert('Error: ' + error.message);
+    }
+}
+
+async function removeParticipant(participantId) {
+    if (!confirm('Are you sure you want to remove this participant?')) return;
+
+    if (currentEventData && currentEventData.status !== 'created') {
+        alert('Cannot remove participants after competition has started.');
+        return;
+    }
+
+    try {
+        await api.deleteParticipant(currentCode, participantId);
+        wsClient.send({ type: 'refresh' });
+        await loadParticipants();
+        alert('Participant removed successfully.');
+    } catch (error) {
+        console.error('Error removing participant:', error);
+        alert('Error removing participant: ' + error.message);
     }
 }
 
