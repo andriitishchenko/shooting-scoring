@@ -135,7 +135,7 @@ async function submitParticipant(e) {
         gender: document.getElementById('p-gender').value || null,
         age_category: document.getElementById('p-age-category').value || null,
         shooting_type: document.getElementById('p-shooting-type').value || null,
-        weapon_type: document.getElementById('p-weapon').value || null,
+        skill_type: document.getElementById('p-skill').value || null,
         personal_number: document.getElementById('p-number').value || null
     };
     

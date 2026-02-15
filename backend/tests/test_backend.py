@@ -373,7 +373,7 @@ class TestLeaderboardGeneration:
                 (event_id, "John Doe", 1, "A", "male", "compound"),
                 (event_id, "Jane Smith", 2, "A", "female", "compound"),
                 (event_id, "Bob Wilson", 3, "B", "male", "barebow"),
-                (event_id, "Alice Brown", 4, "B", "female", "olympic"),
+                (event_id, "Alice Brown", 4, "B", "female", "recurve"),
             ]
             
             participant_ids = []
@@ -453,16 +453,16 @@ class TestLeaderboardGeneration:
             assert 'male_compound' in groups
             assert 'female_compound' in groups
             assert 'male_barebow' in groups
-            assert 'female_olympic' in groups
+            assert 'female_recurve' in groups
             
             # Verify scores
             male_compound = groups['male_compound'][0]
             assert male_compound[0] == "John Doe"
             assert male_compound[1] == 29
             
-            female_olympic = groups['female_olympic'][0]
-            assert female_olympic[0] == "Alice Brown"
-            assert female_olympic[1] == 30
+            female_recurve = groups['female_recurve'][0]
+            assert female_recurve[0] == "Alice Brown"
+            assert female_recurve[1] == 30
 
 
 class TestModelValidation:

@@ -333,7 +333,7 @@ function editParticipant(participantId) {
     document.getElementById('p-gender').value = participant.gender || '';
     document.getElementById('p-age-category').value = participant.age_category || '';
     document.getElementById('p-shooting-type').value = participant.shooting_type || '';
-    document.getElementById('p-weapon').value = participant.weapon_type || '';
+    document.getElementById('p-skill').value = participant.skill_type || '';
     document.getElementById('p-number').value = participant.personal_number || '';
     
     document.getElementById('participant-modal').classList.remove('hidden');
@@ -365,7 +365,7 @@ async function submitParticipant(e) {
         gender: document.getElementById('p-gender').value || null,
         age_category: document.getElementById('p-age-category').value || null,
         shooting_type: document.getElementById('p-shooting-type').value || null,
-        weapon_type: document.getElementById('p-weapon').value || null,
+        skill_type: document.getElementById('p-skill').value || null,
         personal_number: document.getElementById('p-number').value || null
     };
     
@@ -507,7 +507,7 @@ function formatGroupTitle(gender, shootingType) {
     const shootingMap = {
         'compound': 'Compound Bow',
         'barebow': 'Barebow',
-        'olympic': 'Olympic',
+        'recurve': 'Recurve',
         'unknown': 'Unspecified Type'
     };
     
@@ -554,7 +554,7 @@ async function importCSV(event) {
                 continue;
             }
             
-            const [name, lane, shift, gender, ageCategory, shootingType, weapon, personalNumber] = cleanValues;
+            const [name, lane, shift, gender, ageCategory, shootingType, skill, personalNumber] = cleanValues;
             
             const participant = {
                 name: name || '',
@@ -563,7 +563,7 @@ async function importCSV(event) {
                 gender: gender || null,
                 age_category: ageCategory || null,
                 shooting_type: shootingType || null,
-                weapon_type: weapon || null,
+                skill_type: skill || null,
                 personal_number: personalNumber || null
             };
             

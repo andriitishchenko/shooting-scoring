@@ -149,7 +149,7 @@ function formatGroupTitle(titleArray) {
         'unknown': 'UNSPECIFIED',
         'compound': 'COMPOUND BOW',
         'barebow': 'BAREBOW',
-        'olympic': 'OLYMPIC'
+        'recurve': 'RECURVE'
     };
     
     return titleArray.map(item => generalMap[item] || item).join(' - ');

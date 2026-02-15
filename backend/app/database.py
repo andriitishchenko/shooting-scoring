@@ -39,7 +39,7 @@ class DatabaseManager:
                     gender TEXT,
                     age_category TEXT,
                     shooting_type TEXT,
-                    weapon_type TEXT,
+                    skill_type TEXT,
                     personal_number TEXT,
                     FOREIGN KEY (event_id) REFERENCES event(id)
                 )

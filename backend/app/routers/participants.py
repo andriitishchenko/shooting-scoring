@@ -30,12 +30,12 @@ async def add_participant(code: str, participant: ParticipantCreate):
         cursor = await db.execute("""
             INSERT INTO participants 
             (event_id, name, lane_number, shift, gender, age_category, 
-             shooting_type, weapon_type, personal_number)
+             shooting_type, skill_type, personal_number)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event[0], participant.name, participant.lane_number, 
             participant.shift, participant.gender, participant.age_category,
-            participant.shooting_type, participant.weapon_type, 
+            participant.shooting_type, participant.skill_type, 
             participant.personal_number
         ))
         
@@ -55,7 +55,7 @@ async def get_participants(code: str, lane_number: Optional[int] = None):
     
     query = """
         SELECT id, name, lane_number, shift, gender, age_category, 
-               shooting_type, weapon_type, personal_number
+               shooting_type, skill_type, personal_number
         FROM participants 
         WHERE event_id = (SELECT id FROM event WHERE code = ?)
     """
@@ -80,7 +80,7 @@ async def get_participants(code: str, lane_number: Optional[int] = None):
             gender=p[4],
             age_category=p[5],
             shooting_type=p[6],
-            weapon_type=p[7],
+            skill_type=p[7],
             personal_number=p[8]
         )
         for p in participants
@@ -141,7 +141,7 @@ async def update_participant(code: str, participant_id: int, participant: Partic
         await db.execute("""
             UPDATE participants 
             SET name = ?, lane_number = ?, shift = ?, gender = ?,
-                age_category = ?, shooting_type = ?, weapon_type = ?, 
+                age_category = ?, shooting_type = ?, skill_type = ?, 
                 personal_number = ?
             WHERE id = ?
         """, (
@@ -151,7 +151,7 @@ async def update_participant(code: str, participant_id: int, participant: Partic
             participant.gender,
             participant.age_category,
             participant.shooting_type,
-            participant.weapon_type,
+            participant.skill_type,
             participant.personal_number,
             participant_id
         ))

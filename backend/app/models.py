@@ -30,7 +30,7 @@ class ParticipantCreate(BaseModel):
     gender: Optional[str] = None
     age_category: Optional[str] = None
     shooting_type: Optional[str] = None
-    weapon_type: Optional[str] = None
+    skill_type: Optional[str] = None
     personal_number: Optional[str] = None
 
 
@@ -42,7 +42,7 @@ class ParticipantResponse(BaseModel):
     gender: Optional[str] = None
     age_category: Optional[str] = None
     shooting_type: Optional[str] = None
-    weapon_type: Optional[str] = None
+    skill_type: Optional[str] = None
     personal_number: Optional[str] = None
 
 
