@@ -1,0 +1,221 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: var(--font-base);
+    line-height: 1.6;
+    color: var(--gray-900);
+    background: var(--gray-100);
+    
+    /* Disable zoom and gestures */
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent overscroll */
+html, body {
+    overscroll-behavior: none;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* Screen management */
+.screen {
+    min-height: 100vh;
+}
+
+.screen.hidden {
+    display: none;
+}
+
+/* Typography */
+h1 {
+    font-size: var(--font-3xl);
+    font-weight: 700;
+    margin-bottom: var(--spacing-lg);
+    color: var(--gray-900);
+}
+
+h2 {
+    font-size: var(--font-2xl);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--gray-800);
+}
+
+h3 {
+    font-size: var(--font-xl);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--gray-800);
+}
+
+/* Button styles */
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+.btn {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-size: var(--font-lg);
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    min-height: 56px;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn:active {
+    transform: scale(0.98);
+    box-shadow: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1B5E20;
+}
+
+.btn-secondary {
+    background: var(--secondary);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #1565C0;
+}
+
+.btn-tertiary {
+    background: var(--tertiary);
+    color: white;
+}
+
+.btn-tertiary:hover {
+    background: #6A1B9A;
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #2E7D32;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #C62828;
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: white;
+}
+
+/* Input styles */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: var(--spacing-md);
+    font-size: var(--font-base);
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: white;
+    margin-bottom: var(--spacing-md);
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Card styles */
+.card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Loading spinner */
+.spinner {
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: var(--spacing-xl) auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Alert messages */
+.alert {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.alert-success {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border: 1px solid #81C784;
+}
+
+.alert-error {
+    background: #FFEBEE;
+    color: #C62828;
+    border: 1px solid #E57373;
+}
+
+.alert-warning {
+    background: #FFF3E0;
+    color: #E65100;
+    border: 1px solid #FFB74D;
+}
+
+/* Form styles */
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--gray-700);
+}

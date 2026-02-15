@@ -1,0 +1,242 @@
+/* Client screen styles */
+
+/* Lane selection grid */
+.lane-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-sm);
+    margin: var(--spacing-lg) 0;
+}
+
+.lane-btn {
+    padding: var(--spacing-lg);
+    font-size: var(--font-2xl);
+    font-weight: 600;
+    min-height: 70px;
+}
+
+/* Participant cards */
+.participant-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.participant-card:active {
+    transform: scale(0.98);
+    border-color: var(--primary);
+}
+
+.participant-name {
+    font-size: var(--font-xl);
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-xs);
+}
+
+.participant-info {
+    font-size: var(--font-sm);
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-xs);
+}
+
+.participant-score {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* Score input screen */
+.score-input-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--gray-50);
+}
+
+.score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: white;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.score-header h2 {
+    margin: 0;
+    font-size: var(--font-xl);
+}
+
+.score-header #total-score {
+    font-size: var(--font-3xl);
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.score-header .btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-height: auto;
+    font-size: var(--font-base);
+}
+
+/* Score grid */
+.score-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+    scroll-behavior: smooth;
+}
+
+.series-row {
+    display: grid;
+    grid-template-columns: 40px repeat(3, 1fr) 100px;
+    gap: var(--spacing-sm);
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: white;
+    margin-bottom: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.series-row > div:first-child {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--gray-600);
+    text-align: center;
+}
+
+.shot-btn {
+    padding: var(--spacing-md);
+    font-size: var(--font-xl);
+    font-weight: 700;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: white;
+    min-height: 60px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.shot-btn:active {
+    transform: scale(0.95);
+}
+
+.shot-btn.filled {
+    border-color: var(--success);
+    background: #E8F5E9;
+    color: var(--success);
+}
+
+.shot-btn.selected {
+    border-color: var(--primary);
+    background: #E3F2FD;
+}
+
+.series-total {
+    text-align: right;
+    font-weight: 700;
+    font-size: var(--font-base);
+    color: var(--gray-700);
+    padding-right: var(--spacing-sm);
+}
+
+.series-total br {
+    display: block;
+    content: "";
+    margin: 2px 0;
+}
+
+/* Score input buttons */
+.score-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: white;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    bottom: 0;
+}
+
+.score-btn {
+    padding: var(--spacing-lg);
+    font-size: var(--font-2xl);
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-lg);
+    min-height: 70px;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: var(--shadow-sm);
+}
+
+.score-btn:active {
+    transform: scale(0.95);
+    box-shadow: none;
+}
+
+/* Score button colors */
+.score-btn.yellow {
+    background: var(--color-yellow);
+    color: #000;
+}
+
+.score-btn.red {
+    background: var(--color-red);
+    color: white;
+}
+
+.score-btn.blue {
+    background: var(--color-blue);
+    color: white;
+}
+
+.score-btn.black {
+    background: var(--color-black);
+    color: white;
+}
+
+.score-btn.white {
+    background: var(--color-white);
+    color: #000;
+    border: 2px solid var(--gray-400);
+}
+
+.score-btn.miss {
+    background: var(--color-miss);
+    color: white;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 480px) {
+    .score-buttons {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .score-btn {
+        font-size: var(--font-xl);
+        min-height: 60px;
+        padding: var(--spacing-md);
+    }
+    
+    .series-row {
+        grid-template-columns: 30px repeat(3, 1fr) 80px;
+        gap: 4px;
+    }
+    
+    .shot-btn {
+        min-height: 50px;
+        font-size: var(--font-lg);
+    }
+}

@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+*.egg
+*.env
+.env
+.venv
+venv/
+ENV/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# SQLite
+*.sqlite3
+*.db
+*.sqlite
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Test & Coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
+pytest_cache/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# CSV/Artifacts
+*.csv
+
+# Ignore local scripts
+start.sh
+start.bat
+
+# Ignore frontend build artifacts (if any)
+frontend/dist/
+frontend/build/
+
+# Ignore backend virtualenvs
+backend/venv/
+
+# Ignore database backups
+*.bak
+*.backup
+
+# Ignore secrets
+secrets.env

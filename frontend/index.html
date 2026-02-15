@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Shooting Scoring System</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Shooting Scoring System</h1>
+        <p style="text-align: center; color: var(--gray-600); margin-bottom: var(--spacing-xl);">
+            Select your role to continue
+        </p>
+        
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="location.href='host.html'">
+                HOST
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    Create and manage event
+                </div>
+            </button>
+            
+            <button class="btn btn-secondary" onclick="location.href='client.html'">
+                CLIENT
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    Enter scores
+                </div>
+            </button>
+            
+            <button class="btn btn-tertiary" onclick="location.href='viewer.html'">
+                VIEWER
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    View leaderboard
+                </div>
+            </button>
+        </div>
+        
+        <div style="margin-top: var(--spacing-2xl); padding: var(--spacing-lg); background: white; border-radius: var(--radius-lg);">
+            <h3>Quick Guide</h3>
+            <ul style="list-style: none; padding: 0; color: var(--gray-700);">
+                <li style="margin-bottom: var(--spacing-sm);">
+                    <strong>HOST:</strong> Create event with 4-digit code, manage participants and settings
+                </li>
+                <li style="margin-bottom: var(--spacing-sm);">
+                    <strong>CLIENT:</strong> Enter code, select lane, input shooting scores
+                </li>
+                <li>
+                    <strong>VIEWER:</strong> Enter code to view live leaderboard
+                </li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
