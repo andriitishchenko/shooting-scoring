@@ -281,12 +281,14 @@ function renderParticipants(participants) {
                                     ${p.shooting_type ? `<span class="meta-badge">${p.shooting_type}</span>` : ''}
                                 </div>
                             </div>
-                            <button class="btn-edit-inline" onclick="editParticipant(${p.id})" title="Edit">
-                                ✎ Edit
-                            </button>
-                            <button class="btn btn-sm btn-danger" onclick="removeParticipant(${p.id})" title="Remove">
-                                🗑️ Remove
-                            </button>
+                            <div class="participant-actions">
+                                <button class="btn-edit-inline" onclick="editParticipant(${p.id})" title="Edit">
+                                    ✎ Edit
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="removeParticipant(${p.id})" title="Remove">
+                                    🗑️ Remove
+                                </button>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -502,7 +504,7 @@ function renderResults(grouped) {
                     </thead>
                     <tbody>
                         ${sortedEntries.map((entry, index) => `
-                            <tr class="${index < 3 ? 'top-3' : ''}">
+                            <tr class="tr-top-3'}">
                                 <td><span class="result-rank rank-${index + 1}">${index + 1}</span></td>
                                 <td><strong>${entry.name}</strong></td>
                                 <td>${entry.lane_shift}</td>

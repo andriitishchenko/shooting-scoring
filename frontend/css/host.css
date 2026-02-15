@@ -462,6 +462,11 @@
     color: #2E7D32;
 }
 
+.participant-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
 @media (max-width: 768px) {
     .control-panel {
         flex-direction: column;
