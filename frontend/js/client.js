@@ -151,7 +151,7 @@ async function submitParticipant(e) {
 }
 
 // Score input
-function openScoreInput(participantId) {
+async function openScoreInput(participantId) {
     // Check if competition has started
     if (eventData && eventData.status !== 'started') {
         alert('Competition has not started yet. Please wait for the host to start the competition.');
@@ -164,8 +164,16 @@ function openScoreInput(participantId) {
     }
     
     currentParticipant = participants.find(p => p.id === participantId);
-    results = Storage.getResults(participantId);
     
+    // Fetch results from server
+    try {
+        results = await api.getParticipantResults(currentCode, participantId);
+        Storage.saveResults(participantId, results);
+    } catch (error) {
+        console.error('Error fetching results:', error);
+        results = Storage.getResults(participantId); // Fallback to local
+    }
+
     document.getElementById('participants-screen').classList.add('hidden');
     document.getElementById('score-screen').classList.remove('hidden');
     document.getElementById('participant-name').textContent = currentParticipant.name;

@@ -16,12 +16,15 @@ async def add_participant(code: str, participant: ParticipantCreate):
         raise HTTPException(status_code=404, detail="Event not found")
     
     async with db_manager.get_connection() as db:
-        # Get event ID
-        cursor = await db.execute("SELECT id FROM event WHERE code = ?", (code,))
+        # Get event ID and status
+        cursor = await db.execute("SELECT id, status FROM event WHERE code = ?", (code,))
         event = await cursor.fetchone()
         
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
+
+        if event[1] == 'finished':
+            raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
         
         # Insert participant
         cursor = await db.execute("""
@@ -93,6 +96,11 @@ async def delete_participant(code: str, participant_id: int):
         raise HTTPException(status_code=404, detail="Event not found")
     
     async with db_manager.get_connection() as db:
+        cursor = await db.execute("SELECT status FROM event WHERE code = ?", (code,))
+        event = await cursor.fetchone()
+        if event and event[0] == 'finished':
+            raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
+
         # Delete results first (foreign key)
         await db.execute(
             "DELETE FROM results WHERE participant_id = ?",

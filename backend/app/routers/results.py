@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api/results", tags=["results"])
 
 @router.get("/{code}/leaderboard")
 async def get_leaderboard(code: str):
-    """Get leaderboard grouped by gender and shooting type"""
+    """Get leaderboard grouped by age_category, weapon_type, gender, and shooting type"""
     db_manager = DatabaseManager(code)
     
     if not db_manager.exists():
@@ -31,26 +31,31 @@ async def get_leaderboard(code: str):
                     p.name,
                     p.lane_number,
                     p.shift,
+                    COALESCE(p.age_category, 'unknown') as age_category,
+                    COALESCE(p.weapon_type, 'unknown') as weapon_type,
                     COALESCE(p.gender, 'unknown') as gender,
                     COALESCE(p.shooting_type, 'unknown') as shooting_type,
                     COALESCE(SUM(r.score), 0) as total_score,
-                    COUNT(r.id) as shots_taken
+                    COUNT(CASE WHEN r.is_x = 1 THEN 1 END) as x_count,
+                    COUNT(CASE WHEN r.score = 10 THEN 1 END) as ten_count
                 FROM participants p
                 LEFT JOIN results r ON p.id = r.participant_id
                 WHERE p.event_id = ?
                 GROUP BY p.id
-                ORDER BY total_score DESC
+                ORDER BY total_score DESC, x_count DESC, ten_count DESC
             """, (event_id,))
             
             leaderboard = await cursor.fetchall()
         
-        # Group by gender and shooting type
+        # Group by categories
         grouped: Dict[str, List[Dict]] = {}
         
         for entry in leaderboard:
-            gender = entry[4]
-            shooting_type = entry[5]
-            key = f"{gender}_{shooting_type}"
+            age_category = entry[4]
+            weapon_type = entry[5]
+            gender = entry[6]
+            shooting_type = entry[7]
+            key = f"{age_category}_{weapon_type}_{gender}_{shooting_type}"
             
             if key not in grouped:
                 grouped[key] = []
@@ -59,13 +64,14 @@ async def get_leaderboard(code: str):
                 "id": entry[0],
                 "name": entry[1],
                 "lane_shift": f"{entry[2]}{entry[3]}",
-                "total_score": entry[6],
-                "shots_taken": entry[7]
+                "total_score": entry[8],
+                "x_count": entry[9],
+                "ten_count": entry[10]
             })
         
-        # Sort each group by score
+        # Sort each group by score, then X's, then 10s
         for key in grouped:
-            grouped[key].sort(key=lambda x: x['total_score'], reverse=True)
+            grouped[key].sort(key=lambda x: (x['total_score'], x['x_count'], x['ten_count']), reverse=True)
         
         return grouped
     except HTTPException:
@@ -84,6 +90,11 @@ async def save_results(code: str, results: List[ResultCreate]):
         raise HTTPException(status_code=404, detail="Event not found")
     
     async with db_manager.get_connection() as db:
+        cursor = await db.execute("SELECT status FROM event WHERE code = ?", (code,))
+        event = await cursor.fetchone()
+        if event and event[0] == 'finished':
+            raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
+
         for result in results:
             # Validate score
             if result.score < 0 or result.score > 10:
@@ -143,6 +154,11 @@ async def delete_participant_results(code: str, participant_id: int):
         raise HTTPException(status_code=404, detail="Event not found")
     
     async with db_manager.get_connection() as db:
+        cursor = await db.execute("SELECT status FROM event WHERE code = ?", (code,))
+        event = await cursor.fetchone()
+        if event and event[0] == 'finished':
+            raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
+
         await db.execute(
             "DELETE FROM results WHERE participant_id = ?",
             (participant_id,)
