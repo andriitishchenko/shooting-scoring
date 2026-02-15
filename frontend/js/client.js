@@ -64,7 +64,21 @@ function showLaneSelection() {
 async function selectLane(laneNumber) {
     currentLane = laneNumber;
     Storage.saveLane(laneNumber);
+    Storage.clearAllParticipantResults();
     await loadLaneParticipants();
+
+    var participants = await api.getParticipants(currentCode, currentLane);
+
+    // Fetch and save results for each participant on the current lane
+    for (const p of participants) {
+        try {
+            const participantResults = await api.getParticipantResults(currentCode, p.id);
+            Storage.saveResults(p.id, participantResults);
+        } catch (error) {
+            console.error(`Error fetching results for participant ${p.id}:`, error);
+            Storage.saveResults(p.id, []); // On error, ensure cache is an empty array.
+        }
+    }
 }
 
 async function loadLaneParticipants() {

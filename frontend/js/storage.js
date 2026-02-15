@@ -62,6 +62,21 @@ class Storage {
         this.remove(key);
     }
 
+    static clearAllParticipantResults() {
+        try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('results_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+        } catch (e) {
+            console.error('LocalStorage clear all results error:', e);
+        }
+    }
+
     static saveLane(lane) {
         this.set('client_lane', lane);
     }
