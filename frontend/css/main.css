@@ -28,7 +28,7 @@ html, body {
     min-height: 100vh;
 }
 
-.screen.hidden {
+.screen.hidden , .hidden{
     display: none;
 }
 

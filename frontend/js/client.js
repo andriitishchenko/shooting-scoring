@@ -15,9 +15,34 @@ window.addEventListener('DOMContentLoaded', () => {
     if (savedCode && savedLane) {
         currentCode = savedCode;
         currentLane = savedLane;
+
+        clientRestoreConnections();
+        
+        document.getElementById('code-screen').classList.add('hidden');
+        document.getElementById('lane-screen').classList.remove('hidden');
+        
         loadLaneParticipants();
     }
 });
+
+async function clientRestoreConnections() {
+    if (currentCode.length !== CONFIG.CODE_LENGTH) {
+        alert('Invalid code length');
+        return;
+    }
+
+    try {
+        eventData = await api.getEvent(currentCode);
+        // WebSocket
+        wsClient = new WSClient(currentCode);
+        wsClient.connect();
+        wsClient.on('event_status', handleEventStatus);
+        wsClient.on('refresh', () => loadLaneParticipants());
+    } catch (error) {
+        alert('Event not found: ' + error.message);
+    }
+}
+
 
 async function clientEnter() {
     const code = document.getElementById('code-input').value.trim().toUpperCase();
@@ -33,12 +58,14 @@ async function clientEnter() {
         Storage.saveEventCode(code, 'client');
         
         showLaneSelection();
+
+        await clientRestoreConnections();
         
-        // WebSocket
-        wsClient = new WSClient(code);
-        wsClient.connect();
-        wsClient.on('event_status', handleEventStatus);
-        wsClient.on('refresh', () => loadLaneParticipants());
+        // // WebSocket
+        // wsClient = new WSClient(code);
+        // wsClient.connect();
+        // wsClient.on('event_status', handleEventStatus);
+        // wsClient.on('refresh', () => loadLaneParticipants());
     } catch (error) {
         alert('Event not found: ' + error.message);
     }
@@ -65,7 +92,8 @@ async function selectLane(laneNumber) {
     currentLane = laneNumber;
     Storage.saveLane(laneNumber);
     Storage.clearAllParticipantResults();
-    await loadLaneParticipants();
+    eventData = await api.getEvent(currentCode);        
+    participants = await api.getParticipants(currentCode, currentLane);
 
     // Fetch and save results for each participant on the current lane
     for (const p of participants) {
@@ -77,6 +105,8 @@ async function selectLane(laneNumber) {
             Storage.saveResults(p.id, []); // On error, ensure cache is an empty array.
         }
     }
+
+    await loadLaneParticipants();
 }
 
 async function loadLaneParticipants() {
@@ -89,19 +119,30 @@ async function loadLaneParticipants() {
         document.getElementById('lane-screen').classList.add('hidden');
         document.getElementById('participants-screen').classList.remove('hidden');
         document.getElementById('current-lane').textContent = currentLane;
-        
-        // Show add button only if event not started
-        const addBtn = document.getElementById('add-participant-btn');
-        if (eventData && eventData.status === 'created') {
+
+        renderParticipantsList();
+        renderAddParticipantButton();
+    } catch (error) {
+        console.error('Error loading participants:', error);
+        alert('Error loading participants');
+    }
+}
+
+function renderAddParticipantButton() {
+    var shouldShow = false;
+    if (eventData) {
+        if (eventData.status === 'created') {
+            shouldShow = true;
+        }
+    }
+    
+    const addBtn = document.getElementById('add-participant-btn');
+    if (addBtn) {
+        if (shouldShow) {
             addBtn.classList.remove('hidden');
         } else {
             addBtn.classList.add('hidden');
         }
-        
-        renderParticipantsList();
-    } catch (error) {
-        console.error('Error loading participants:', error);
-        alert('Error loading participants');
     }
 }
 
@@ -114,9 +155,9 @@ function renderParticipantsList() {
         const totalScore = calculateTotalScore(p.id);
         return `
             <div class="participant-card" onclick="openScoreInput(${p.id})">
+                <div class="participant-info">${p.lane_number}${p.shift}</div>
                 <div class="participant-name">${p.name}</div>
-                <div class="participant-info">Lane ${p.lane_number} - Shift ${p.shift}</div>
-                <div class="participant-score">${totalScore} points</div>
+                <div class="participant-score">${totalScore}</div>
             </div>
         `;
     }).join('');
@@ -432,9 +473,9 @@ function updateTotalScore() {
 }
 
 // Prepare results for the API by mapping fields
-function mapResultsForApi(results) {
+function mapResultsForApi(participantId, results) {
     return results.map(r => ({
-        participant_id: r.participant_id,
+        participant_id: participantId,
         series_number: r.series,
         shot_number: r.shot,
         score: r.score,
@@ -461,7 +502,7 @@ Do you want to exit anyway? (Results will be saved but series is incomplete)`)) 
     // Always send results to server
     try {
         if (results.length > 0) {
-            const resultsForApi = mapResultsForApi(results);
+            const resultsForApi = mapResultsForApi(currentParticipant.id,results);
             await api.saveResults(currentCode, resultsForApi);
             
             const totalScore = results.reduce((sum, r) => sum + r.score, 0);
@@ -485,7 +526,7 @@ async function autoSaveResults() {
     if (!currentParticipant || results.length === 0) return;
     
     try {
-        const resultsForApi = mapResultsForApi(results);
+        const resultsForApi = mapResultsForApi(currentParticipant.id,results);
         await api.saveResults(currentCode, resultsForApi);
         console.log('Results auto-saved to server');
     } catch (error) {

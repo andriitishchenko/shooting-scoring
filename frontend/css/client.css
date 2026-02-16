@@ -25,6 +25,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border: 2px solid transparent;
+    display: flex;
 }
 
 .participant-card:active {
@@ -37,12 +38,14 @@
     font-weight: 600;
     color: var(--gray-900);
     margin-bottom: var(--spacing-xs);
+    margin-right: auto;
 }
 
 .participant-info {
     font-size: var(--font-sm);
     color: var(--gray-600);
     margin-bottom: var(--spacing-xs);
+    margin-right: auto;
 }
 
 .participant-score {
