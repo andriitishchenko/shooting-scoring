@@ -215,7 +215,7 @@ function renderScoreGrid() {
         
         // Get results for this series and sort by score descending
         const seriesResults = results
-            .filter(r => r.series_number === series)
+            .filter(r => r.series === series)
             .sort((a, b) => b.score - a.score); // Sort descending
         
         for (let shot = 1; shot <= shotsPerSeries; shot++) {
@@ -257,12 +257,12 @@ function selectShot(series, shot, event) {
     const btn = event.target;
     
     // Check if this cell is already filled and selected
-    const existingResult = results.find(r => r.series_number === series && r.shot_number === shot);
+    const existingResult = results.find(r => r.series === series && r.shot === shot);
     
     if (existingResult && btn.classList.contains('selected')) {
         // Double-click on already selected filled cell - clear it
         if (confirm('Clear this score?')) {
-            results = results.filter(r => !(r.series_number === series && r.shot_number === shot));
+            results = results.filter(r => !(r.series === series && r.shot === shot));
             Storage.saveResults(currentParticipant.id, results);
             
             // Re-render to show cleared cell
@@ -316,13 +316,13 @@ function inputScore(score, isX = false) {
     const { series, shot } = currentShotSelection;
     
     // Remove old result if exists
-    results = results.filter(r => !(r.series_number === series && r.shot_number === shot));
+    results = results.filter(r => !(r.series === series && r.shot === shot));
     
     // Add new result
     results.push({
         participant_id: currentParticipant.id,
-        series_number: series,
-        shot_number: shot,
+        series: series,
+        shot: shot,
         score: score,
         is_x: isX
     });
@@ -342,7 +342,7 @@ function inputScore(score, isX = false) {
     updateSeriesTotal(series);
     
     // Check if series is complete (3 shots)
-    const seriesResults = results.filter(r => r.series_number === series);
+    const seriesResults = results.filter(r => r.series === series);
     if (seriesResults.length === 3) {
         // Series complete - re-render to sort
         renderScoreGrid();
@@ -372,7 +372,7 @@ function findNextEmptyShot() {
             const shotIndex = (series - 1) * shotsPerSeries + shot;
             if (shotIndex > totalShots) return null;
             
-            const exists = results.find(r => r.series_number === series && r.shot_number === shot);
+            const exists = results.find(r => r.series === series && r.shot === shot);
             if (!exists) {
                 return { series, shot };
             }
@@ -409,13 +409,13 @@ function scrollToNextEmpty() {
 
 function calculateSeriesScore(series) {
     return results
-        .filter(r => r.series_number === series)
+        .filter(r => r.series === series)
         .reduce((sum, r) => sum + r.score, 0);
 }
 
 function calculateCumulativeScore(upToSeries) {
     return results
-        .filter(r => r.series_number <= upToSeries)
+        .filter(r => r.series <= upToSeries)
         .reduce((sum, r) => sum + r.score, 0);
 }
 
@@ -433,6 +433,17 @@ function updateTotalScore() {
     document.getElementById('total-score').textContent = total;
 }
 
+// Prepare results for the API by mapping fields
+function mapResultsForApi(results) {
+    return results.map(r => ({
+        participant_id: r.participant_id,
+        series_number: r.series,
+        shot_number: r.shot,
+        score: r.score,
+        is_x: r.is_x
+    }));
+}
+
 async function backToParticipants() {
     // Validate that shots are in multiples of 3
     const shotsPerSeries = 3;
@@ -442,7 +453,9 @@ async function backToParticipants() {
         const incomplete = totalResults % shotsPerSeries;
         const missing = shotsPerSeries - incomplete;
         
-        if (!confirm(`Incomplete series! You have ${incomplete} shot(s) in the current series. You need ${missing} more shot(s) to complete it.\n\nDo you want to exit anyway? (Results will be saved but series is incomplete)`)) {
+        if (!confirm(`Incomplete series! You have ${incomplete} shot(s) in the current series. You need ${missing} more shot(s) to complete it.
+
+Do you want to exit anyway? (Results will be saved but series is incomplete)`)) {
             return;
         }
     }
@@ -450,7 +463,8 @@ async function backToParticipants() {
     // Always send results to server
     try {
         if (results.length > 0) {
-            await api.saveResults(currentCode, results);
+            const resultsForApi = mapResultsForApi(results);
+            await api.saveResults(currentCode, resultsForApi);
             
             const totalScore = results.reduce((sum, r) => sum + r.score, 0);
             wsClient.send({
@@ -473,7 +487,8 @@ async function autoSaveResults() {
     if (!currentParticipant || results.length === 0) return;
     
     try {
-        await api.saveResults(currentCode, results);
+        const resultsForApi = mapResultsForApi(results);
+        await api.saveResults(currentCode, resultsForApi);
         console.log('Results auto-saved to server');
     } catch (error) {
         console.error('Auto-save failed:', error);
