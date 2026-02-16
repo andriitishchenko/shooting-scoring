@@ -417,8 +417,8 @@ async function submitParticipant(e) {
 async function removeParticipant(participantId) {
     if (!confirm('Are you sure you want to remove this participant?')) return;
 
-    if (currentEventData && currentEventData.status !== 'created') {
-        alert('Cannot remove participants after competition has started.');
+    if (currentEventData && currentEventData.status === 'finished') {
+        alert('Cannot remove participants after competition has FINISHED.');
         return;
     }
 
