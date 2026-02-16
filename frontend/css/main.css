@@ -14,7 +14,6 @@ body {
 
 /* Prevent overscroll */
 html, body {
-    overscroll-behavior: none;
     overflow-x: hidden;
 }
 
