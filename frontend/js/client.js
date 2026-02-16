@@ -67,8 +67,6 @@ async function selectLane(laneNumber) {
     Storage.clearAllParticipantResults();
     await loadLaneParticipants();
 
-    var participants = await api.getParticipants(currentCode, currentLane);
-
     // Fetch and save results for each participant on the current lane
     for (const p of participants) {
         try {
