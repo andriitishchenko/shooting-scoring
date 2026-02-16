@@ -509,7 +509,7 @@ function renderResults(grouped) {
                                 <td><strong>${entry.name}</strong></td>
                                 <td>${entry.lane_shift}</td>
                                 <td><span class="result-score">${entry.total_score}</span></td>
-                                <td>${entry.shots_taken}</td>
+                                <td>M(${entry.m_count}),X(${entry.x_count}),10(${entry.ten_count})</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -633,16 +633,16 @@ async function exportCSV() {
         const participants = await api.getParticipants(currentCode);
         const leaderboard = await api.getLeaderboard(currentCode);
 
-        let csv = 'Rank,Name,Lane,Shift,Gender,Shooting Type,Score,Shots\n';
+        let csv = 'Rank,Name,Lane,Shift,Gender,Type,Group,Score,X,10,M\n';
         
         for (const [groupKey, entries] of Object.entries(leaderboard)) {
-            const [gender, shootingType] = groupKey.split('_');
+            // const [gender, shootingType] = groupKey.split('_');
             const sortedEntries = entries.sort((a, b) => b.total_score - a.total_score);
             
             sortedEntries.forEach((entry, index) => {
                 const participant = participants.find(p => p.id === entry.id);
                 if (participant) {
-                    csv += `${index + 1},"${participant.name}",${participant.lane_number},"${participant.shift}","${gender}","${shootingType}",${entry.total_score},${entry.shots_taken}\n`;
+                    csv += `${index + 1},"${participant.name}",${participant.lane_number},"${participant.shift}","${entry.gender}","${entry.shooting_type}","${entry.skill_type}",${entry.total_score},${entry.x_count},${entry.ten_count},${entry.m_count}\n`;
                 }
             });
         }

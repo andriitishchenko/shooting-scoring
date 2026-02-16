@@ -37,7 +37,8 @@ async def get_leaderboard(code: str):
                     COALESCE(p.shooting_type, 'unknown') as shooting_type,
                     COALESCE(SUM(r.score), 0) as total_score,
                     COUNT(CASE WHEN r.is_x = 1 THEN 1 END) as x_count,
-                    COUNT(CASE WHEN r.score = 10 THEN 1 END) as ten_count
+                    COUNT(CASE WHEN r.score = 10 THEN 1 END) as ten_count,
+                    COUNT(CASE WHEN r.score = 0 THEN 1 END) as m_count
                 FROM participants p
                 LEFT JOIN results r ON p.id = r.participant_id
                 WHERE p.event_id = ?
@@ -66,7 +67,12 @@ async def get_leaderboard(code: str):
                 "lane_shift": f"{entry[2]}{entry[3]}",
                 "total_score": entry[8],
                 "x_count": entry[9],
-                "ten_count": entry[10]
+                "ten_count": entry[10],
+                "m_count": entry[11],
+                "age_category": age_category,
+                "skill_type": skill_type,
+                "gender": gender,
+                "shooting_type": shooting_type
             })
         
         # Sort each group by score, then X's, then 10s
