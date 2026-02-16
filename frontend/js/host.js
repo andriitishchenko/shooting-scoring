@@ -457,10 +457,9 @@ function filterResults() {
     let filtered = {};
     
     for (const [key, entries] of Object.entries(allResults)) {
-        const [gender, type] = key.split('_');
-        
-        if (genderFilter && gender !== genderFilter) continue;
-        if (typeFilter && type !== typeFilter) continue;
+        const groupTitleList = key.split('_');
+        if (genderFilter && !groupTitleList.includes(genderFilter)) continue;
+        if (typeFilter && !groupTitleList.includes(typeFilter)) continue;
         
         filtered[key] = entries;
     }
@@ -484,14 +483,14 @@ function renderResults(grouped) {
     let html = '';
     
     for (const [groupKey, entries] of Object.entries(grouped)) {
-        const [gender, shootingType] = groupKey.split('_');
+        const groupTitleList = groupKey.split('_');
         
         // Sort by score descending
         const sortedEntries = entries.sort((a, b) => b.total_score - a.total_score);
         
         html += `
             <div class="results-group">
-                <div class="results-group-title">${formatGroupTitle(gender, shootingType)}</div>
+                <div class="results-group-title">${formatGroupTitle(groupTitleList)}</div>
                 <table class="results-table">
                     <thead>
                         <tr>
@@ -521,21 +520,17 @@ function renderResults(grouped) {
     container.innerHTML = html;
 }
 
-function formatGroupTitle(gender, shootingType) {
-    const genderMap = {
-        'male': 'Men',
-        'female': 'Women',
-        'unknown': 'Unspecified Gender'
+function formatGroupTitle(titleArray) {
+    const generalMap = {
+        'male': 'MEN',
+        'female': 'WOMEN',
+        'unknown': 'UNSPECIFIED',
+        'compound': 'COMPOUND BOW',
+        'barebow': 'BAREBOW',
+        'recurve': 'RECURVE'
     };
     
-    const shootingMap = {
-        'compound': 'Compound Bow',
-        'barebow': 'Barebow',
-        'recurve': 'Recurve',
-        'unknown': 'Unspecified Type'
-    };
-    
-    return `${genderMap[gender] || gender} - ${shootingMap[shootingType] || shootingType}`;
+    return titleArray.map(item => generalMap[item] || item).join(' - ');
 }
 
 // ============================================
