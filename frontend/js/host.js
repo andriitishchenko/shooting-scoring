@@ -529,6 +529,7 @@ function formatGroupTitle(titleArray) {
         'barebow': 'BAREBOW',
         'recurve': 'RECURVE'
     };
+    titleArray = titleArray.filter(item => item !== 'unknown');
     
     return titleArray.map(item => generalMap[item] || item).join(' - ');
 }
