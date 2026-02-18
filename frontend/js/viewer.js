@@ -1,7 +1,7 @@
 let currentCode = null;
-let wsClient = null;
 let scrollInterval = null;
 let refreshInterval = null;
+let event = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     // Restore saved code
@@ -22,20 +22,13 @@ async function viewerEnter() {
     }
 
     try {
-        await api.getEvent(code);
+        event = await api.getEvent(code);
         currentCode = code;
         Storage.saveEventCode(code, 'viewer');
         
         document.getElementById('code-screen').classList.add('hidden');
         document.getElementById('results-screen').classList.remove('hidden');
-        
-        // WebSocket for real-time updates
-        wsClient = new WSClient(code);
-        wsClient.connect();
-        wsClient.on('result_update', () => loadLeaderboard());
-        wsClient.on('event_status', () => loadLeaderboard());
-        wsClient.on('refresh', () => loadLeaderboard());
-        
+                
         // Initial load
         await loadLeaderboard();
         
@@ -55,9 +48,6 @@ function exitViewer() {
         if (refreshInterval) clearInterval(refreshInterval);
         if (scrollInterval) clearInterval(scrollInterval);
         
-        // Disconnect WebSocket
-        if (wsClient) wsClient.disconnect();
-        
         // Clear saved code
         Storage.clearEventCode('viewer');
         
@@ -72,6 +62,7 @@ function exitViewer() {
 
 async function loadLeaderboard() {
     try {
+        event = await api.getEvent(currentCode);
         const leaderboard = await api.getLeaderboard(currentCode);
         renderLeaderboard(leaderboard);
     } catch (error) {
@@ -94,6 +85,8 @@ function renderLeaderboard(grouped) {
         `;
         return;
     }
+
+    const eventStateRank = event.status === 'created';
     
     container.innerHTML = '';
     
@@ -124,10 +117,13 @@ function renderLeaderboard(grouped) {
         sortedEntries.forEach((entry, index) => {
             const row = document.createElement('div');
             row.className = 'leaderboard-row';
-            if (index < 3) row.classList.add('top-3');
+
+            if (!eventStateRank){
+                if (index < 3) row.classList.add('top-3');
+            }
             
             row.innerHTML = `
-                <div class="position">${index + 1}</div>
+                <div class="position">${ eventStateRank ? '' : index + 1}</div>
                 <div class="lane-shift">${entry.lane_shift}</div>
                 <div class="name">${entry.name}</div>
                 <div class="score-info"><span class="x-count">X-${entry.x_count}</span> <span class="ten-count">10-${entry.ten_count}</span></div>
@@ -146,7 +142,6 @@ function formatGroupTitle(titleArray) {
     const generalMap = {
         'male': 'MEN',
         'female': 'WOMEN',
-        'unknown': 'UNSPECIFIED',
         'compound': 'COMPOUND BOW',
         'barebow': 'BAREBOW',
         'recurve': 'RECURVE'

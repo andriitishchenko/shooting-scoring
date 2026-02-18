@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api/results", tags=["results"])
 
 @router.get("/{code}/leaderboard")
 async def get_leaderboard(code: str):
-    """Get leaderboard grouped by age_category, skill_type, gender, and shooting type"""
+    """Get leaderboard grouped by age_category, group_type, gender, and shooting type"""
     db_manager = DatabaseManager(code)
     
     if not db_manager.exists():
@@ -32,7 +32,7 @@ async def get_leaderboard(code: str):
                     p.lane_number,
                     p.shift,
                     COALESCE(p.age_category, 'unknown') as age_category,
-                    COALESCE(p.skill_type, 'unknown') as skill_type,
+                    COALESCE(p.group_type, 'unknown') as group_type,
                     COALESCE(p.gender, 'unknown') as gender,
                     COALESCE(p.shooting_type, 'unknown') as shooting_type,
                     COALESCE(SUM(r.score), 0) as total_score,
@@ -53,10 +53,10 @@ async def get_leaderboard(code: str):
         
         for entry in leaderboard:
             age_category = entry[4]
-            skill_type = entry[5]
+            group_type = entry[5]
             gender = entry[6]
             shooting_type = entry[7]
-            key = f"{age_category}_{skill_type}_{gender}_{shooting_type}"
+            key = f"{age_category}_{group_type}_{gender}_{shooting_type}"
             
             if key not in grouped:
                 grouped[key] = []
@@ -70,7 +70,7 @@ async def get_leaderboard(code: str):
                 "ten_count": entry[10],
                 "m_count": entry[11],
                 "age_category": age_category,
-                "skill_type": skill_type,
+                "group_type": group_type,
                 "gender": gender,
                 "shooting_type": shooting_type
             })

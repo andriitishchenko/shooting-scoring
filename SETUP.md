@@ -184,7 +184,7 @@ ipconfig
 const CONFIG = {
     API_BASE_URL: 'http://YOUR_IP:8000/api',
     WS_BASE_URL: 'ws://YOUR_IP:8000/ws',
-    CODE_LENGTH: 4
+    CODE_LENGTH: 6
 };
 ```
 

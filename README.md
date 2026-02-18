@@ -197,7 +197,7 @@ Each event creates a SQLite database (`event_{CODE}.db`) with:
 Edit `frontend/js/config.js` to change:
 - API_BASE_URL: Backend API URL
 - WS_BASE_URL: WebSocket URL
-- CODE_LENGTH: Code length (default: 4)
+- CODE_LENGTH: Code length (default: 6)
 
 Edit `backend/app/config.py` for backend settings:
 - DATABASE_DIR: Database storage location

@@ -279,6 +279,8 @@ function renderParticipants(participants) {
                                     ${p.gender ? `<span class="meta-badge">${p.gender}</span>` : ''}
                                     ${p.personal_number ? `<span class="meta-badge">№${p.personal_number}</span>` : ''}
                                     ${p.shooting_type ? `<span class="meta-badge">${p.shooting_type}</span>` : ''}
+                                    ${p.group_type ? `<span class="meta-badge">${p.group_type}</span>` : ''}
+                                    ${p.age_category ? `<span class="meta-badge">${p.age_category}</span>` : ''}
                                 </div>
                             </div>
                             <div class="participant-actions">
@@ -338,7 +340,7 @@ function editParticipant(participantId) {
     document.getElementById('p-gender').value = participant.gender || '';
     document.getElementById('p-age-category').value = participant.age_category || '';
     document.getElementById('p-shooting-type').value = participant.shooting_type || '';
-    document.getElementById('p-skill').value = participant.skill_type || '';
+    document.getElementById('p-group').value = participant.group_type || '';
     document.getElementById('p-number').value = participant.personal_number || '';
     
     document.getElementById('participant-modal').classList.remove('hidden');
@@ -370,17 +372,17 @@ async function submitParticipant(e) {
         gender: document.getElementById('p-gender').value || null,
         age_category: document.getElementById('p-age-category').value || null,
         shooting_type: document.getElementById('p-shooting-type').value || null,
-        skill_type: document.getElementById('p-skill').value || null,
+        group_type: document.getElementById('p-group').value || null,
         personal_number: document.getElementById('p-number').value || null
     };
     
     try {
         if (participantId) {
             // Edit mode - check if competition started
-            if (currentEventData && currentEventData.status !== 'created') {
-                alert('Cannot edit participants after competition has started');
-                return;
-            }
+            // if (currentEventData && currentEventData.status !== 'created') {
+            //     alert('Cannot edit participants after competition has started');
+            //     return;
+            // }
             
             // Update existing participant
             await api.updateParticipant(currentCode, participantId, participant);
@@ -574,7 +576,7 @@ async function importCSV(event) {
                 continue;
             }
             
-            const [name, lane, shift, gender, ageCategory, shootingType, skill, personalNumber] = cleanValues;
+            const [name, lane, shift, gender, ageCategory, shootingType, group, personalNumber] = cleanValues;
             
             const participant = {
                 name: name || '',
@@ -583,7 +585,7 @@ async function importCSV(event) {
                 gender: gender || null,
                 age_category: ageCategory || null,
                 shooting_type: shootingType || null,
-                skill_type: skill || null,
+                group_type: group || null,
                 personal_number: personalNumber || null
             };
             
@@ -638,7 +640,7 @@ async function exportCSV() {
             sortedEntries.forEach((entry, index) => {
                 const participant = participants.find(p => p.id === entry.id);
                 if (participant) {
-                    csv += `${index + 1},"${participant.name}",${participant.lane_number},"${participant.shift}","${entry.gender}","${entry.shooting_type}","${entry.skill_type}",${entry.total_score},${entry.x_count},${entry.ten_count},${entry.m_count}\n`;
+                    csv += `${index + 1},"${participant.name}",${participant.lane_number},"${participant.shift}","${entry.gender}","${entry.shooting_type}","${entry.group_type}",${entry.total_score},${entry.x_count},${entry.ten_count},${entry.m_count}\n`;
                 }
             });
         }

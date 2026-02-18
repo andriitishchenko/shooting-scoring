@@ -15,7 +15,7 @@
     <div id="code-screen" class="screen">
         <div class="container">
             <h1>CLIENT Entry</h1>
-            <input type="text" id="code-input" maxlength="4" placeholder="Enter 4-digit code" style="text-transform: uppercase;">
+            <input type="text" id="code-input" maxlength="8" placeholder="Enter code" style="text-transform: uppercase;">
             <button class="btn btn-primary" onclick="clientEnter()">Enter</button>
             <button class="btn" onclick="location.href='index.html'">Back</button>
         </div>
@@ -46,7 +46,7 @@
             <h2>New Participant</h2>
             <form id="participant-form" onsubmit="submitParticipant(event)">
                 <input type="text" id="p-name" placeholder="Name *" required>
-                <input type="text" id="p-shift" placeholder="Shift (A, B, C...)" maxlength="1" required style="text-transform: uppercase;">
+                <input type="text" id="p-shift" placeholder="Shift (A, B, C...) *" maxlength="1" required style="text-transform: uppercase;">
                 <select id="p-gender">
                     <option value="">Gender</option>
                     <option value="male">Male</option>
@@ -59,7 +59,7 @@
                     <option value="barebow">Barebow</option>
                     <option value="recurve">Recurve</option>
                 </select>
-                <input type="text" id="p-skill" placeholder="skill">
+                <input type="text" id="p-group" placeholder="Group">
                 <input type="text" id="p-number" placeholder="Personal Number">
                 <button type="submit" class="btn btn-primary">Add</button>
                 <button type="button" class="btn" onclick="hideAddParticipant()">Cancel</button>
