@@ -33,6 +33,38 @@
     border-radius: var(--radius-md);
 }
 
+/* Copy link buttons */
+.copy-link-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-copy-link {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1.5px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    white-space: nowrap;
+}
+
+.btn-copy-link:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn-copy-link.copied {
+    background: #2ecc71;
+    border-color: #2ecc71;
+    color: #fff;
+}
+
 /* Control Panel */
 .control-panel {
     background: white;

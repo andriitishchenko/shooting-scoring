@@ -8,6 +8,25 @@ let results = [];
 let wsClient = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Check for code in URL params
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('code');
+    if (urlCode) {
+        // Remove code from URL without reload
+        params.delete('code');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        history.replaceState(null, '', newUrl);
+
+        // Clear any existing session silently
+        Storage.clearEventCode('client');
+        Storage.clearLane();
+        currentLane = null;
+
+        document.getElementById('code-input').value = urlCode.toUpperCase();
+        clientEnter();
+        return;
+    }
+
     // Restore state
     const savedCode = Storage.getEventCode('client');
     const savedLane = Storage.getLane();

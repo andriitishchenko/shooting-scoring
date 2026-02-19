@@ -4,6 +4,30 @@ let refreshInterval = null;
 let event = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Check for code in URL params
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('code');
+    if (urlCode) {
+        // Remove code from URL without reload
+        params.delete('code');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        history.replaceState(null, '', newUrl);
+
+        // If there's an active session, exit it silently first
+        if (currentCode) {
+            if (refreshInterval) clearInterval(refreshInterval);
+            if (scrollInterval) clearInterval(scrollInterval);
+            Storage.clearEventCode('viewer');
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('code-screen').classList.remove('hidden');
+            currentCode = null;
+        }
+
+        document.getElementById('code-input').value = urlCode.toUpperCase();
+        viewerEnter();
+        return;
+    }
+
     // Restore saved code
     const savedCode = Storage.getEventCode('viewer');
     if (savedCode) {
@@ -42,22 +66,22 @@ async function viewerEnter() {
     }
 }
 
-function exitViewer() {
-    if (confirm('Exit viewer mode?')) {
-        // Clear intervals
-        if (refreshInterval) clearInterval(refreshInterval);
-        if (scrollInterval) clearInterval(scrollInterval);
-        
-        // Clear saved code
-        Storage.clearEventCode('viewer');
-        
-        // Reset UI
-        document.getElementById('results-screen').classList.add('hidden');
-        document.getElementById('code-screen').classList.remove('hidden');
-        document.getElementById('code-input').value = '';
-        
-        currentCode = null;
-    }
+function exitViewer(silent = false) {
+    if (!silent && !confirm('Exit viewer mode?')) return;
+
+    // Clear intervals
+    if (refreshInterval) clearInterval(refreshInterval);
+    if (scrollInterval) clearInterval(scrollInterval);
+    
+    // Clear saved code
+    Storage.clearEventCode('viewer');
+    
+    // Reset UI
+    document.getElementById('results-screen').classList.add('hidden');
+    document.getElementById('code-screen').classList.remove('hidden');
+    document.getElementById('code-input').value = '';
+    
+    currentCode = null;
 }
 
 async function loadLeaderboard() {

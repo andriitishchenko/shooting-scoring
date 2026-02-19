@@ -90,6 +90,7 @@ function loadAdminPanel() {
     document.getElementById('code-screen').classList.add('hidden');
     document.getElementById('admin-screen').classList.remove('hidden');
     document.getElementById('event-code-display').textContent = `Code: ${currentCode}`;
+    document.getElementById('copy-link-buttons').style.display = 'flex';
 
     loadEventData();
     
@@ -665,4 +666,49 @@ function exitHost() {
         if (wsClient) wsClient.disconnect();
         location.href = 'index.html';
     }
+}
+
+
+// ============================================
+// COPY LINKS
+// ============================================
+
+function copyLink(role) {
+    const code = currentCode;
+    if (!code) return;
+
+    const base = window.location.href.replace(/\/[^/]*$/, "/");
+
+    // Properly escape query parameter value
+    const encodedCode = encodeURIComponent(code);
+
+    const url = `${base}${role}.html?code=${encodedCode}`;
+
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById(`btn-copy-${role}`);
+        const orig = btn.textContent;
+        btn.textContent = "✓ Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove("copied");
+        }, 2000);
+    }).catch(() => {
+        prompt("Copy this link:", url);
+    });
+}
+
+function copyCode() {
+    const code = currentCode;
+    if (!code) return;
+
+    navigator.clipboard.writeText(code).then(() => {
+        const display = document.getElementById("event-code-display");
+        const orig = display.textContent;
+        display.textContent = "✓ Copied!";
+        setTimeout(() => { display.textContent = orig; }, 2000);
+    }).catch(() => {
+        prompt("Copy this code:", code);
+    });
+
 }

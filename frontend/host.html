@@ -26,7 +26,12 @@
             <div class="admin-header">
                 <div>
                     <h1>Admin Panel</h1>
-                    <span id="event-code-display"></span>
+                    <!-- <span id="event-code-display1" onclick="copyCode()"></span> -->
+                    <div class="copy-link-buttons" id="copy-link-buttons">
+                        <button class="btn-copy-link" id="event-code-display" onclick="copyCode()"></button>
+                        <button class="btn-copy-link" id="btn-copy-client" onclick="copyLink('client')">📋 Copy for Client</button>
+                        <button class="btn-copy-link" id="btn-copy-viewer" onclick="copyLink('viewer')">📋 Copy for Viewer</button>
+                    </div>
                 </div>
                 <div id="status-badge" class="status-badge"></div>
             </div>
