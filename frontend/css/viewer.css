@@ -181,3 +181,19 @@
         font-size: var(--font-4xl);
     }
 }
+
+/* Multi-series breakdown in viewer */
+.viewer-series-scores {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.viewer-series-score {
+    font-size: 0.7em;
+    opacity: 0.75;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    padding: 1px 6px;
+}

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routers import events, participants, results, websocket
+from app.routers import distances
 from app.config import settings
 import os
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(events.router)
 app.include_router(participants.router)
 app.include_router(results.router)
+app.include_router(distances.router)
 app.include_router(websocket.router)
 
 # Mount frontend static files

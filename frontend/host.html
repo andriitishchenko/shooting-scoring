@@ -26,9 +26,8 @@
             <div class="admin-header">
                 <div>
                     <h1>Admin Panel</h1>
-                    <!-- <span id="event-code-display1" onclick="copyCode()"></span> -->
+                    <span id="event-code-display"></span>
                     <div class="copy-link-buttons" id="copy-link-buttons">
-                        <button class="btn-copy-link" id="event-code-display" onclick="copyCode()"></button>
                         <button class="btn-copy-link" id="btn-copy-client" onclick="copyLink('client')">📋 Copy for Client</button>
                         <button class="btn-copy-link" id="btn-copy-viewer" onclick="copyLink('viewer')">📋 Copy for Viewer</button>
                     </div>
@@ -38,12 +37,6 @@
 
             <!-- CONTROL PANEL -->
             <div class="control-panel">
-                <div class="control-group">
-                    <label>Shots Count:</label>
-                    <input type="number" id="shots-count" value="30" min="1" max="200" style="width: 80px;">
-                    <button class="btn btn-sm btn-secondary" onclick="updateSettings()">Update</button>
-                </div>
-                
                 <div class="control-buttons">
                     <button class="btn btn-success" id="start-btn" onclick="startEvent()">
                         <span>▶</span> Start
@@ -62,6 +55,15 @@
                         <span>←</span> Exit
                     </button>
                 </div>
+            </div>
+
+            <!-- DISTANCES PANEL -->
+            <div class="distances-panel">
+                <div class="distances-header">
+                    <h2>Distances</h2>
+                    <button class="btn btn-success btn-sm" id="add-distance-btn" onclick="addDistance()">+ Add Distance</button>
+                </div>
+                <div id="distances-list" class="distances-list"></div>
             </div>
 
             <!-- TABS -->
@@ -84,7 +86,6 @@
                         </button>
                     </div>
                 </div>
-                
                 <div id="participants-container" class="participants-grid"></div>
             </div>
 
@@ -107,7 +108,6 @@
                         <button class="btn btn-sm btn-secondary" onclick="loadResults()">🔄 Refresh</button>
                     </div>
                 </div>
-                
                 <div id="results-container" class="results-table-container"></div>
             </div>
         </div>
@@ -121,14 +121,12 @@
                 </div>
                 <form id="participant-form" onsubmit="submitParticipant(event)">
                     <input type="hidden" id="edit-participant-id" value="">
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Name *</label>
                             <input type="text" id="p-name" required>
                         </div>
                     </div>
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Lane *</label>
@@ -139,7 +137,6 @@
                             <input type="text" id="p-shift" maxlength="1" required style="text-transform: uppercase;">
                         </div>
                     </div>
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Gender</label>
@@ -154,7 +151,6 @@
                             <input type="text" id="p-age-category" placeholder="e.g., Junior, Senior">
                         </div>
                     </div>
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Shooting Type</label>
@@ -170,14 +166,12 @@
                             <input type="text" id="p-group">
                         </div>
                     </div>
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Personal Number</label>
                             <input type="text" id="p-number">
                         </div>
                     </div>
-                    
                     <div class="modal-footer">
                         <button type="button" class="btn" onclick="closeParticipantModal()">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="submit-participant-btn">Add Participant</button>

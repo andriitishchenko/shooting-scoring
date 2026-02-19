@@ -243,3 +243,54 @@
         font-size: var(--font-lg);
     }
 }
+
+/* Multi-series support */
+.participant-series-scores {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+}
+
+.series-score-tag {
+    font-size: 0.72rem;
+    background: rgba(0,0,0,0.08);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #555;
+    font-weight: 600;
+}
+
+.series-row-active {
+    background: rgba(46, 204, 113, 0.08);
+    border-left: 3px solid #2ecc71;
+}
+
+.series-row-inactive .shot-btn {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.shot-btn-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Distance summary tags in participants list ── */
+.participant-dist-summary {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+}
+
+.dist-tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.dist-tag-pending  { background: #eee; color: #888; }
+.dist-tag-active   { background: #d4f4e2; color: #1a7a40; }
+.dist-tag-done     { background: #e0e8ff; color: #3366cc; }
