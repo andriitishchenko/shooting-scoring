@@ -672,3 +672,135 @@
 }
 
 .dist-btn { white-space: nowrap; }
+
+/* ── Results table enhancements ─────────────────────────────────── */
+.th-dist { min-width: 80px; }
+
+.dist-score-link {
+    cursor: pointer;
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--primary-light, #e8f0fe);
+    color: var(--primary, #2563eb);
+    font-weight: 700;
+    transition: background 0.15s, color 0.15s;
+}
+.dist-score-link:hover {
+    background: var(--primary, #2563eb);
+    color: #fff;
+}
+
+.score-empty { color: #bbb; }
+
+.avg-score-cell {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
+}
+.xten-cell { color: #666; font-size: 0.85rem; }
+
+/* ── Detail modal ────────────────────────────────────────────────── */
+.detail-modal-content {
+    max-width: 520px;
+    width: 95vw;
+}
+
+.detail-subtitle {
+    font-size: 0.88rem;
+    color: #555;
+    margin-top: 4px;
+    line-height: 1.6;
+}
+
+.detail-dist-name {
+    font-weight: 700;
+    color: var(--primary, #2563eb);
+}
+
+.detail-modal-body {
+    margin-top: 16px;
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.detail-loading {
+    text-align: center;
+    padding: 32px;
+    color: #999;
+}
+
+.detail-score-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Reuse .series-row styles from client — replicate key ones here */
+.detail-series-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.detail-series-num {
+    width: 24px;
+    text-align: center;
+    font-weight: 700;
+    color: #666;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+/* Shot buttons in read-only detail view */
+.detail-series-row .shot-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    background: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detail-series-row .shot-btn.filled {
+    background: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+    color: #fff;
+}
+
+.detail-series-row .shot-btn.shot-x {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #fff;
+}
+
+.detail-series-row .shot-btn:disabled {
+    opacity: 1;  /* keep full colour even when disabled */
+}
+
+.detail-series-row .shot-btn:empty {
+    background: #f0f0f0;
+    border-color: #e0e0e0;
+}
+
+.detail-avg-label {
+    font-size: 0.75rem;
+    color: #888;
+    font-weight: 400;
+}
+
+.detail-series-row .series-total {
+    min-width: 52px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.3;
+}

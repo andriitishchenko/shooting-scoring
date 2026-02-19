@@ -68,6 +68,9 @@ class APIClient {
     async getParticipantState(code, participantId) {
         return this.request(`/results/${code}/state/${participantId}`);
     }
+    async getDistanceDetail(code, participantId, distanceId) {
+        return this.request(`/results/${code}/detail/${participantId}/${distanceId}`);
+    }
     async getLeaderboard(code) { return this.request(`/results/${code}/leaderboard`); }
     async deleteParticipantResults(code, participantId) {
         return this.request(`/results/${code}/${participantId}`, { method: 'DELETE' });

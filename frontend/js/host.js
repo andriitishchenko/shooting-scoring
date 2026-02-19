@@ -18,8 +18,15 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            const modal = document.getElementById('participant-modal');
-            if (modal && !modal.classList.contains('hidden')) closeParticipantModal();
+            const participantModal = document.getElementById('participant-modal');
+            if (participantModal && !participantModal.classList.contains('hidden')) {
+                closeParticipantModal();
+                return;
+            }
+            const detailModal = document.getElementById('detail-modal');
+            if (detailModal && !detailModal.classList.contains('hidden')) {
+                closeDetailModal();
+            }
         }
     });
 });
@@ -473,15 +480,12 @@ function renderResults(grouped) {
         return;
     }
 
-    // Get ordered distance titles from currentDistances
     const distOrder = currentDistances.map(d => ({ id: d.id, title: d.title }));
 
     let html = '';
     for (const [groupKey, entries] of Object.entries(grouped)) {
         const sortedEntries = [...entries].sort((a, b) => b.total_score - a.total_score);
-
-        // Distance columns header
-        const distHeaders = distOrder.map(d => `<th style="min-width:80px;">${escHtml(d.title)}</th>`).join('');
+        const distHeaders = distOrder.map(d => `<th class="th-dist">${escHtml(d.title)}</th>`).join('');
 
         html += `
         <div class="results-group">
@@ -489,20 +493,25 @@ function renderResults(grouped) {
             <table class="results-table">
                 <thead>
                     <tr>
-                        <th style="width:50px;">Rank</th>
+                        <th style="width:46px;">Rank</th>
                         <th>Name</th>
-                        <th style="width:80px;">Lane</th>
+                        <th style="width:70px;">Lane</th>
                         ${distHeaders}
-                        <th style="width:80px;">Total</th>
-                        <th style="width:110px;">X / 10</th>
+                        <th style="width:68px;">Total</th>
+                        <th style="width:68px;">Avg</th>
+                        <th style="width:100px;">X / 10</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${sortedEntries.map((entry, i) => {
                         const distCells = distOrder.map(d => {
                             const ds = (entry.distance_scores || []).find(s => s.distance_id === d.id);
-                            return `<td>${ds && ds.score !== null ? ds.score : '—'}</td>`;
+                            if (ds && ds.score !== null) {
+                                return `<td><span class="dist-score-link" onclick="openDetailModal(${entry.id},'${entry.name.replace(/'/g,"\\'")}',${d.id})">${ds.score}</span></td>`;
+                            }
+                            return '<td class="score-empty">—</td>';
                         }).join('');
+                        const avg = entry.avg_score > 0 ? entry.avg_score.toFixed(2) : '—';
                         return `
                         <tr>
                             <td><span class="result-rank rank-${i+1}">${i+1}</span></td>
@@ -510,7 +519,8 @@ function renderResults(grouped) {
                             <td>${entry.lane_shift}</td>
                             ${distCells}
                             <td><span class="result-score">${entry.total_score}</span></td>
-                            <td>X(${entry.x_count}) 10(${entry.ten_count})</td>
+                            <td class="avg-score-cell">${avg}</td>
+                            <td class="xten-cell">X(${entry.x_count}) 10(${entry.ten_count})</td>
                         </tr>`;
                     }).join('')}
                 </tbody>
@@ -518,6 +528,58 @@ function renderResults(grouped) {
         </div>`;
     }
     container.innerHTML = html;
+}
+
+// ── Distance detail popup ───────────────────────────────────────────────────
+
+async function openDetailModal(participantId, participantName, distanceId) {
+    const modal = document.getElementById('detail-modal');
+    const titleEl = document.getElementById('detail-modal-title');
+    const subtitle = document.getElementById('detail-modal-subtitle');
+    const body = document.getElementById('detail-modal-body');
+
+    titleEl.textContent = participantName;
+    subtitle.textContent = 'Loading…';
+    body.innerHTML = '<div class="detail-loading">Loading…</div>';
+    modal.classList.remove('hidden');
+
+    try {
+        const detail = await api.getDistanceDetail(currentCode, participantId, distanceId);
+
+        subtitle.innerHTML = `
+            <span class="detail-dist-name">${escHtml(detail.title)}</span>
+            &nbsp;·&nbsp; Total: <strong>${detail.total_score}</strong>
+            &nbsp;·&nbsp; Avg: <strong>${detail.avg_score.toFixed(2)}</strong>
+            &nbsp;·&nbsp; X: <strong>${detail.x_count}</strong>
+            &nbsp;·&nbsp; 10: <strong>${detail.ten_count}</strong>`;
+
+        const seriesHTML = detail.series.map(s => {
+            const shotBtns = s.shots.map(sh => {
+                if (sh.score === null) return `<button class="shot-btn" disabled></button>`;
+                const cls = sh.is_x ? 'filled shot-x' : 'filled';
+                return `<button class="shot-btn ${cls}" disabled>${sh.is_x ? 'X' : sh.score}</button>`;
+            }).join('');
+            const hasShots = s.shots.some(sh => sh.score !== null);
+            const avgStr = hasShots ? s.avg.toFixed(2) : '—';
+            return `
+            <div class="series-row detail-series-row">
+                <div class="detail-series-num">${s.series}</div>
+                ${shotBtns}
+                <div class="series-total">
+                    ${s.total}<br><span class="detail-avg-label">avg ${avgStr}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        body.innerHTML = `<div class="detail-score-grid">${seriesHTML}</div>`;
+    } catch (err) {
+        body.innerHTML = `<p style="color:#e74c3c;padding:20px;">Error: ${err.message}</p>`;
+        subtitle.textContent = '';
+    }
+}
+
+function closeDetailModal() {
+    document.getElementById('detail-modal').classList.add('hidden');
 }
 
 function formatGroupTitle(titleArray) {
@@ -566,7 +628,7 @@ async function exportCSV() {
         const participants = await api.getParticipants(currentCode);
         const leaderboard = await api.getLeaderboard(currentCode);
         const distHeaders = currentDistances.map(d => `"${d.title}"`).join(',');
-        let csv = `Rank,Name,Lane,Shift,Gender,Type,Group,${distHeaders},Total,X,10\n`;
+        let csv = `Rank,Name,Lane,Shift,Gender,Type,Group,${distHeaders},Total,Avg,X,10\n`;
         for (const [, entries] of Object.entries(leaderboard)) {
             [...entries].sort((a,b) => b.total_score - a.total_score).forEach((entry, i) => {
                 const p = participants.find(x => x.id === entry.id);
@@ -575,7 +637,8 @@ async function exportCSV() {
                     const ds = (entry.distance_scores || []).find(s => s.distance_id === d.id);
                     return ds && ds.score !== null ? ds.score : '';
                 }).join(',');
-                csv += `${i+1},"${p.name}",${p.lane_number},"${p.shift}","${entry.gender}","${entry.shooting_type}","${entry.group_type}",${distCols},${entry.total_score},${entry.x_count},${entry.ten_count}\n`;
+                const avg = entry.avg_score > 0 ? entry.avg_score.toFixed(2) : '0.00';
+                csv += `${i+1},"${p.name}",${p.lane_number},"${p.shift}","${entry.gender}","${entry.shooting_type}","${entry.group_type}",${distCols},${entry.total_score},${avg},${entry.x_count},${entry.ten_count}\n`;
             });
         }
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

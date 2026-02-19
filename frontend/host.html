@@ -181,6 +181,20 @@
         </div>
     </div>
 
+    <!-- DISTANCE DETAIL POPUP -->
+    <div id="detail-modal" class="modal hidden" onclick="if(event.target===this)closeDetailModal()">
+        <div class="modal-content detail-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 id="detail-modal-title">Distance Detail</h2>
+                    <div id="detail-modal-subtitle" class="detail-subtitle"></div>
+                </div>
+                <button class="modal-close" onclick="closeDetailModal()">×</button>
+            </div>
+            <div id="detail-modal-body" class="detail-modal-body"></div>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/storage.js"></script>

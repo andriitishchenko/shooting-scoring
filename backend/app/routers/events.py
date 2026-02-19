@@ -19,8 +19,6 @@ async def create_event(event: EventCreate):
             (event.code, event.shots_count)
         )
         event_id = cursor.lastrowid
-
-        # Create default distance
         await conn.execute(
             "INSERT INTO distances (event_id, title, shots_count, sort_order, status) VALUES (?, ?, ?, ?, ?)",
             (event_id, "Distance 1", event.shots_count, 0, "pending")
@@ -36,11 +34,9 @@ async def get_event(code: str):
     if not db.exists():
         raise HTTPException(status_code=404, detail="Event not found")
 
-    await db.init_db()
-
     async with db.get_connection() as conn:
         cursor = await conn.execute(
-            "SELECT id, code, shots_count, status, created_at, started_at, finished_at FROM event WHERE code = ?",
+            "SELECT id, code, shots_count, status, created_at, started_at, finished_at FROM event WHERE code=?",
             (code,)
         )
         row = await cursor.fetchone()
@@ -68,7 +64,6 @@ async def update_event(code: str, update: EventUpdate):
                     (update.status, code)
                 )
             elif update.status == 'finished':
-                # Also mark any active distance as finished
                 cursor = await conn.execute("SELECT id FROM event WHERE code=?", (code,))
                 ev = await cursor.fetchone()
                 if ev:
