@@ -1,6 +1,10 @@
 // CLIENT JavaScript — session IDs/passwords never appear in HTML attributes
 'use strict';
 
+function _esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 let currentCode         = null;
 let currentLane         = null;
 let currentParticipant  = null;
@@ -278,7 +282,7 @@ function renderParticipantsList() {
                     score = ds?.total_score !== null && ds?.total_score !== undefined ? ds.total_score : '—';
                 }
                 const cls = d.status === 'active' ? 'dist-tag-active' : (d.status === 'finished' ? 'dist-tag-done' : 'dist-tag-pending');
-                return `<span class="dist-tag ${cls}">${d.title}: ${score}</span>`;
+                return `<span class="dist-tag ${cls}">${_esc(d.title)}: ${score}</span>`;
             }).join('');
             distSummary = `<div class="participant-dist-summary">${tags}</div>`;
         }
@@ -286,8 +290,8 @@ function renderParticipantsList() {
         state?.distances.forEach(ds => { if (ds.total_score !== null) total += ds.total_score; });
         return `
         <div class="participant-card" data-pid="${p.id}" onclick="openScoreInput(${p.id})">
-            <div class="participant-info">${p.lane_number}${p.shift}</div>
-            <div class="participant-name">${p.name}${distSummary}</div>
+            <div class="participant-info">${p.lane_number}${_esc(p.shift)}</div>
+            <div class="participant-name">${_esc(p.name)}${distSummary}</div>
             <div class="participant-score">${total}</div>
         </div>`;
     }).join('');

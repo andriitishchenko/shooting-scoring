@@ -1,3 +1,4 @@
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Header
 from app.database import DatabaseManager
 from app.routers.sessions import require_session
@@ -5,11 +6,18 @@ from typing import Optional
 
 router = APIRouter(prefix="/api/properties", tags=["properties"])
 
-# Auth / settings keys
 PROP_HOST_PASSWORD    = "host_password"
 PROP_VIEWER_PASSWORD  = "viewer_password"
 PROP_CLIENT_ALLOW_ADD = "client_allow_add_participant"
 ALLOWED_KEYS = {PROP_HOST_PASSWORD, PROP_VIEWER_PASSWORD, PROP_CLIENT_ALLOW_ADD}
+
+_MAX_PW = 64
+
+
+class PropertiesUpdate(BaseModel):
+    host_password:               Optional[str] = Field(default=None, max_length=_MAX_PW)
+    viewer_password:             Optional[str] = Field(default=None, max_length=_MAX_PW)
+    client_allow_add_participant: Optional[str] = Field(default=None, max_length=8)
 
 
 @router.get("/{code}")
@@ -33,20 +41,30 @@ async def get_properties(code: str, x_session_id: Optional[str] = Header(None)):
 
 
 @router.patch("/{code}")
-async def update_properties(code: str, data: dict, x_session_id: Optional[str] = Header(None)):
+async def update_properties(
+    code: str,
+    data: PropertiesUpdate,
+    x_session_id: Optional[str] = Header(None),
+):
     """Update auth/settings properties. Requires host session."""
     db = DatabaseManager(code)
     if not db.exists():
         raise HTTPException(status_code=404, detail="Event not found")
     await require_session(db, "host", "default", x_session_id)
 
+    updates = {
+        PROP_HOST_PASSWORD:    data.host_password,
+        PROP_VIEWER_PASSWORD:  data.viewer_password,
+        PROP_CLIENT_ALLOW_ADD: data.client_allow_add_participant,
+    }
+
     async with db.get_connection() as conn:
-        for key, value in data.items():
-            if key not in ALLOWED_KEYS:
+        for key, value in updates.items():
+            if value is None:
                 continue
             await conn.execute(
                 "INSERT OR REPLACE INTO properties (key, value) VALUES (?, ?)",
-                (key, str(value) if value is not None else ""),
+                (key, str(value).strip()),
             )
         await conn.commit()
 

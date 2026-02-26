@@ -202,6 +202,16 @@ class APIClient {
             headers: this._sessionHeader(sid)
         });
     }
+
+    // ── Bulk CSV import ───────────────────────────────────────────────────────
+    async importParticipantsCSV(code, csvContent) {
+        const sid = Storage.getHostSession();
+        return this.request(`/participants/${code}/import`, {
+            method: 'POST',
+            body: JSON.stringify({ csv_content: csvContent }),
+            headers: this._sessionHeader(sid)
+        });
+    }
 }
 
 const api = new APIClient(CONFIG.API_BASE_URL);

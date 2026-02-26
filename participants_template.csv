@@ -1,4 +1,4 @@
-Name,Lane,Shift,Gender,Age Category,Shooting Type,Group,Personal Number
+Name,Lane,Shift,Gender,Age_Category,Shooting_Type,Group,Personal_Number
 John Carter,1,A,male,Senior,compound,A,10001
 Emily Turner,1,B,female,Junior,recurve,B,10002
 Michael Reed,1,C,male,Senior,barebow,B,10003

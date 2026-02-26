@@ -260,7 +260,15 @@ function renderDistances() {
 }
 
 function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function csvField(s) {
+    // Escape for CSV: wrap in quotes, escape inner quotes.
+    // Prefix formula-injection characters (=, +, -, @, TAB, CR) with a single quote.
+    const str = String(s ?? '').replace(/"/g, '""');
+    const safe = /^[=+\-@\t\r]/.test(str) ? "'" + str : str;
+    return `"${safe}"`;
 }
 
 async function addDistance() {
@@ -375,11 +383,11 @@ function renderParticipants(participants, sessionLanes = []) {
                 <div class="participant-details">
                     <div class="participant-name-inline">${escHtml(p.name)}</div>
                     <div class="participant-meta">
-                        ${p.gender          ? `<span class="meta-badge">${p.gender}</span>` : ''}
-                        ${p.personal_number ? `<span class="meta-badge">№${p.personal_number}</span>` : ''}
-                        ${p.shooting_type   ? `<span class="meta-badge">${p.shooting_type}</span>` : ''}
-                        ${p.group_type      ? `<span class="meta-badge">${p.group_type}</span>` : ''}
-                        ${p.age_category    ? `<span class="meta-badge">${p.age_category}</span>` : ''}
+                        ${p.gender          ? `<span class="meta-badge">${escHtml(p.gender)}</span>` : ''}
+                        ${p.personal_number ? `<span class="meta-badge">№${escHtml(p.personal_number)}</span>` : ''}
+                        ${p.shooting_type   ? `<span class="meta-badge">${escHtml(p.shooting_type)}</span>` : ''}
+                        ${p.group_type      ? `<span class="meta-badge">${escHtml(p.group_type)}</span>` : ''}
+                        ${p.age_category    ? `<span class="meta-badge">${escHtml(p.age_category)}</span>` : ''}
                     </div>
                 </div>
                 <div class="participant-actions">
@@ -591,7 +599,7 @@ function renderResults(grouped) {
                     const distCells = distOrder.map(d => {
                         const ds = (entry.distance_scores || []).find(s => s.distance_id === d.id);
                         if (ds && ds.score !== null) {
-                            return `<td><span class="dist-score-link" data-pid="${entry.id}" data-did="${d.id}" data-name="${escHtml(entry.name)}" onclick="openDetailModal(${entry.id},${d.id},'${escHtml(entry.name)}')">${ds.score}</span></td>`;
+                            return `<td><span class="dist-score-link" data-pid="${entry.id}" data-did="${d.id}" data-name="${escHtml(entry.name)}">${ds.score}</span></td>`;
                         }
                         return '<td class="score-empty">—</td>';
                     }).join('');
@@ -612,6 +620,15 @@ function renderResults(grouped) {
         </div>`;
     }
     container.innerHTML = html;
+    // Use event delegation — avoids onclick string injection with user-controlled names
+    container.querySelectorAll('.dist-score-link').forEach(el => {
+        el.addEventListener('click', () => {
+            const pid  = parseInt(el.dataset.pid,  10);
+            const did  = parseInt(el.dataset.did,  10);
+            const name = el.dataset.name;
+            openDetailModal(pid, did, name);
+        });
+    });
 }
 
 // ── Detail popup ─────────────────────────────────────────────────────────────
@@ -690,52 +707,95 @@ async function importCSV(event) {
         return;
     }
     try {
-        const text  = await file.text();
-        const lines = text.split('\n').slice(1).filter(l => l.trim());
-        if (!lines.length) { alert('CSV is empty'); return; }
-        let ok = 0, fail = 0;
-        for (const line of lines) {
-            const vals = line.match(/(\".*?\"|[^\",]+)(?=\s*,|\s*$)/g) || [];
-            const v = vals.map(x => x.replace(/^\"|\"$/g,'').trim());
-            if (v.length < 3) { fail++; continue; }
-            const [name, lane, shift, gender, ageCat, shootType, group, num] = v;
-            const p = {
-                name, lane_number: parseInt(lane)||0, shift: (shift||'').toUpperCase(),
-                gender: gender||null, age_category: ageCat||null,
-                shooting_type: shootType||null, group_type: group||null, personal_number: num||null
-            };
-            if (!p.name || !p.lane_number || !p.shift) { fail++; continue; }
-            try { await api.addParticipant(currentCode, p); ok++; } catch { fail++; }
+        const text = await file.text();
+        if (!text.trim()) { alert('CSV is empty'); event.target.value = ''; return; }
+
+        // Send the whole file to the backend in one request — server parses and validates
+        const result = await api.importParticipantsCSV(currentCode, text);
+
+        const msg = [`✓ Added: ${result.added}`];
+        if (result.failed)  msg.push(`✗ Failed: ${result.failed}`);
+        if (result.errors?.length) msg.push('', 'Errors:', ...result.errors.slice(0, 10));
+        alert('Import complete!\n' + msg.join('\n'));
+
+        if (result.added > 0) {
+            wsClient.send({ type: 'refresh' });
+            await loadParticipants();
         }
-        alert(`Import complete!\n✓ Added: ${ok}${fail ? `\n✗ Failed: ${fail}` : ''}`);
-        wsClient.send({ type: 'refresh' });
-        await loadParticipants();
         event.target.value = '';
     } catch (err) {
-        alert('Error reading CSV: ' + err.message);
+        alert('Error importing CSV: ' + err.message);
         event.target.value = '';
     }
 }
 
 async function exportCSV() {
     try {
-        const participants = await api.getParticipants(currentCode);
-        const leaderboard  = await api.getLeaderboard(currentCode);
-        const distHeaders  = currentDistances.map(d => `"${d.title}"`).join(',');
-        let csv = `Rank,Name,Lane,Shift,Gender,Type,Group,${distHeaders},Total,Avg,X,10\n`;
-        for (const entries of Object.values(leaderboard)) {
-            [...entries].sort((a, b) => b.total_score - a.total_score).forEach((entry, i) => {
-                const p = participants.find(x => x.id === entry.id);
-                if (!p) return;
-                const distCols = currentDistances.map(d => {
+        const [participants, leaderboard] = await Promise.all([
+            api.getParticipants(currentCode),
+            api.getLeaderboard(currentCode)
+        ]);
+
+        // Flatten leaderboard into lookup map by participant id
+        const scoreMap = {};   // id -> leaderboard entry
+        const rankMap  = {};   // id -> rank within group (1-based)
+        for (const entries of Object.values(leaderboard || {})) {
+            const sorted = [...entries].sort((a, b) => b.total_score - a.total_score);
+            sorted.forEach((e, i) => {
+                scoreMap[e.id] = e;
+                rankMap[e.id]  = i + 1;
+            });
+        }
+
+        // Only export distances that are active or finished
+        const exportDists = currentDistances.filter(d => d.status === 'active' || d.status === 'finished');
+        const distHeaders = exportDists.map(d => csvField(d.title)).join(',');
+        const hasDists    = exportDists.length > 0;
+
+        let csv = 'Rank,Name,Lane,Shift,Gender,BowType,Group,AgeCategory,PersonalNo';
+        if (hasDists) csv += ',' + distHeaders;
+        csv += ',Total,Avg,X,10\n';
+
+        // ALL participants sorted by lane then shift — unscored rows included
+        const sorted = [...participants].sort((a, b) =>
+            a.lane_number !== b.lane_number
+                ? a.lane_number - b.lane_number
+                : a.shift.localeCompare(b.shift)
+        );
+
+        for (const p of sorted) {
+            const entry = scoreMap[p.id] || null;
+
+            let distCols = '';
+            if (hasDists) {
+                distCols = ',' + exportDists.map(d => {
+                    if (!entry) return '';
                     const ds = (entry.distance_scores || []).find(s => s.distance_id === d.id);
                     return ds && ds.score !== null ? ds.score : '';
                 }).join(',');
-                const avg = entry.avg_score > 0 ? entry.avg_score.toFixed(2) : '0.00';
-                csv += `${i+1},"${p.name}",${p.lane_number},"${p.shift}","${entry.gender}","${entry.shooting_type}","${entry.group_type}",${distCols},${entry.total_score},${avg},${entry.x_count},${entry.ten_count}\n`;
-            });
+            }
+
+            const rank  = entry ? rankMap[p.id] : '';
+            const total = entry ? entry.total_score : '';
+            const avg   = (entry && entry.avg_score > 0) ? entry.avg_score.toFixed(2) : '';
+            const xCnt  = entry ? entry.x_count  : '';
+            const tenCt = entry ? entry.ten_count : '';
+
+            csv += [
+                rank,
+                csvField(p.name),
+                p.lane_number,
+                csvField(p.shift),
+                csvField(p.gender),
+                csvField(p.shooting_type),
+                csvField(p.group_type),
+                csvField(p.age_category),
+                csvField(p.personal_number),
+            ].join(',') + distCols + `,${total},${avg},${xCnt},${tenCt}\n`;
         }
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+        // BOM for Excel UTF-8 recognition
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href = url;

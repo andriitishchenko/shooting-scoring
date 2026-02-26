@@ -1,31 +1,42 @@
 import aiosqlite
 import os
+import re
 from pathlib import Path
 from contextlib import asynccontextmanager
 from app.config import settings
 
+# Strict allowlist: 1-16 uppercase alphanumeric characters only
+_SAFE_CODE_RE = re.compile(r'^[A-Z0-9]{1,16}$')
+
+
+def _validate_code(code: str) -> str:
+    """Raise ValueError if code is not safe for use in a filesystem path."""
+    if not _SAFE_CODE_RE.match(code):
+        raise ValueError(f"Invalid event code: {code!r}")
+    return code
+
 
 class DatabaseManager:
     def __init__(self, code: str):
+        _validate_code(code)          # hard stop — no path traversal possible
         Path(settings.DATABASE_DIR).mkdir(parents=True, exist_ok=True)
-        self.db_path = f"{settings.DATABASE_DIR}/event_{code}.db"
+        # Use os.path.join so the path is always inside DATABASE_DIR
+        base = os.path.realpath(settings.DATABASE_DIR)
+        self.db_path = os.path.join(base, f"event_{code}.db")
+        # Paranoia: ensure resolved path is still inside the databases dir
+        if not self.db_path.startswith(base + os.sep) and self.db_path != base:
+            raise ValueError("Resolved database path escapes DATABASE_DIR")
         self.code = code
 
     async def init_db(self):
         """Initialize a fresh database. No event table — all event fields live in properties."""
         async with aiosqlite.connect(self.db_path) as db:
-            # Key-value store: holds event fields + auth settings
-            # Event keys: event_code, event_status, event_shots_count,
-            #             event_created_at, event_started_at, event_finished_at
-            # Auth keys:  host_password, viewer_password, client_allow_add_participant
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS properties (
                     key   TEXT PRIMARY KEY NOT NULL,
                     value TEXT
                 )
             """)
-
-            # Distances — no event_id FK, single event per DB
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS distances (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,8 +46,6 @@ class DatabaseManager:
                     status      TEXT    NOT NULL DEFAULT 'pending'
                 )
             """)
-
-            # Participants — no event_id FK
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS participants (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +59,6 @@ class DatabaseManager:
                     personal_number TEXT
                 )
             """)
-
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS results (
                     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,8 +73,6 @@ class DatabaseManager:
                     FOREIGN KEY (distance_id)    REFERENCES distances(id)
                 )
             """)
-
-            # Sessions: role + identifier → session_id + password
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS sessions (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
