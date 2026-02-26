@@ -108,7 +108,7 @@ function showLaneSelection() {
     _showScreen('lane-screen');
     const container = document.getElementById('lane-buttons');
     container.innerHTML = '';
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 28; i++) {
         const btn = document.createElement('button');
         btn.className   = 'btn btn-secondary lane-btn';
         btn.textContent = i;
@@ -165,14 +165,29 @@ function _showLanePassword(laneNumber, password) {
     _showScreen('lane-password-screen');
 }
 
+function _fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); } catch (_) {}
+    document.body.removeChild(ta);
+}
+
 function copyLanePassword() {
     const box = document.getElementById('lane-pw-display');
     const pw  = box.dataset.pw || box.textContent;
     if (!pw) return;
-    navigator.clipboard.writeText(pw).then(() => {
+    const done = () => {
         box.textContent = '✓ Copied!';
         setTimeout(() => { box.textContent = pw; }, 1500);
-    }).catch(() => {});
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(pw).then(done).catch(() => _fallbackCopy(pw, done));
+    } else {
+        _fallbackCopy(pw, done);
+    }
 }
 
 async function proceedAfterPassword() {
@@ -240,7 +255,7 @@ async function loadLaneParticipants() {
         allowAddParticipant = pub.client_allow_add_participant !== false;
         await _refreshAllParticipantStates();
 
-        document.getElementById('current-lane').textContent = currentLane;
+        document.getElementById('lane-badge').textContent = currentLane;
         _renderAddParticipantButton();
         renderParticipantsList();
         _showScreen('participants-screen');
@@ -496,6 +511,41 @@ function _scrollToNextEmpty() {
         const b = document.querySelector(`[data-series="${next.series}"][data-shot="${next.shot}"]`);
         if (b) { document.querySelectorAll('.shot-btn').forEach(x => x.classList.remove('selected')); b.classList.add('selected'); }
     }, 100);
+}
+// Delete the last filled shot for the current participant/distance and move focus back
+async function deleteLastScore() {
+    const ad = _getActiveDist();
+    if (!ad) return;
+    if (!results.length) return;
+
+    // Find the highest shot number currently filled
+    const maxShot = Math.max(...results.map(r => r.shot));
+    results = results.filter(r => r.shot !== maxShot);
+
+    // Determine which series it belonged to
+    const series = Math.ceil(maxShot / 3);
+    const shot   = maxShot - (series - 1) * 3;
+
+    // Clear the visual slot
+    const btn = document.querySelector(`[data-series="${series}"][data-shot="${shot}"]`);
+    if (btn) {
+        btn.textContent = '';
+        btn.classList.remove('filled', 'selected');
+    }
+
+    updateTotalScore();
+    _updateSeriesTotal(series);
+
+    // Set focus to the now-empty slot
+    _currentShot = { series, shot, shotNum: maxShot };
+    document.querySelectorAll('.shot-btn').forEach(b => b.classList.remove('selected'));
+    if (btn) {
+        btn.classList.add('selected');
+        _scrollToSeries(series);
+    }
+
+    // Persist immediately
+    await _autoSave();
 }
 
 function _seriesScore(s) {

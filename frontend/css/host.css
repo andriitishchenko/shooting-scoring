@@ -51,22 +51,25 @@
     margin: 0 0 var(--spacing-xs);
 }
 
-.event-meta {
+/* ── Event meta row (badges + copy links, single line) ─────────────────── */
+.event-meta-row {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
     flex-wrap: wrap;
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
 }
 
 .event-meta-badge {
-    font-size: var(--font-lg);
+    font-size: var(--font-base);
     font-weight: 700;
     color: var(--primary);
     background: var(--gray-100);
     padding: var(--spacing-xs) var(--spacing-md);
     border-radius: var(--radius-md);
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 .event-pw-badge {
@@ -75,29 +78,19 @@
     border: 1.5px solid #aed6f1;
 }
 
-/* Clickable badges (code / password) */
+/* Touch/click-to-copy badges */
 .clickable-badge {
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
     user-select: none;
+    touch-action: manipulation;
     transition: background 0.15s, color 0.15s;
 }
 
-.clickable-badge:hover {
+.clickable-badge:hover,
+.clickable-badge:active {
     background: var(--primary);
     color: #fff;
-}
-
-.clickable-badge:active {
-    transform: scale(0.97);
-}
-
-/* ── Copy link buttons ──────────────────────────────────────────────────── */
-.copy-link-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 8px;
 }
 
 .btn-copy-link {
@@ -111,6 +104,8 @@
     cursor: pointer;
     transition: background 0.18s, color 0.18s;
     white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .btn-copy-link:hover { background: var(--primary); color: #fff; }

@@ -34,13 +34,22 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Click-to-copy badges
-    document.getElementById('event-code-display').addEventListener('click', () => {
-        copyToClipboard(currentCode, 'event-code-display', 'Code copied!');
-    });
-    document.getElementById('event-password-display').addEventListener('click', () => {
-        copyToClipboard(Storage.getHostPassword(), 'event-password-display', 'Password copied!');
-    });
+    // Touch/click-to-copy badges — touchstart eliminates 300ms tap delay on mobile
+    function _addCopyListener(id, getText, msg) {
+        const el = document.getElementById(id);
+        let _didTouch = false;
+        el.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            _didTouch = true;
+            copyToClipboard(getText(), id, msg);
+        }, { passive: false });
+        el.addEventListener('click', () => {
+            if (_didTouch) { _didTouch = false; return; }
+            copyToClipboard(getText(), id, msg);
+        });
+    }
+    _addCopyListener('event-code-display',     () => currentCode,               'Code copied!');
+    _addCopyListener('event-password-display', () => Storage.getHostPassword(), 'Password copied!');
 });
 
 // ============================================================
@@ -820,21 +829,41 @@ function exitHost() {
 function copyLink(role) {
     const base = window.location.href.replace(/\/[^/]*(\?.*)?$/, '/');
     const url  = `${base}${role}.html?code=${currentCode}`;
-    navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById(`btn-copy-${role}`);
-        const orig = btn.textContent;
+    const btn  = document.getElementById(`btn-copy-${role}`);
+    const orig = btn.textContent;
+    const done = () => {
         btn.textContent = '✓ Copied!';
         btn.classList.add('copied');
         setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
-    }).catch(() => prompt('Copy this link:', url));
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(done).catch(() => _fallbackCopy(url, done));
+    } else {
+        _fallbackCopy(url, done);
+    }
+}
+
+function _fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); } catch (_) {}
+    document.body.removeChild(ta);
 }
 
 function copyToClipboard(text, elementId, successMsg) {
     if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-        const el = document.getElementById(elementId);
-        const orig = el.textContent;
+    const el   = document.getElementById(elementId);
+    const orig = el.textContent;
+    const done = () => {
         el.textContent = `✓ ${successMsg}`;
         setTimeout(() => { el.textContent = orig; }, 1500);
-    }).catch(() => {});
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done).catch(() => _fallbackCopy(text, done));
+    } else {
+        _fallbackCopy(text, done);
+    }
 }

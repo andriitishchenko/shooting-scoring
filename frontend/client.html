@@ -32,10 +32,13 @@
 
 <!-- Lane selection -->
 <div id="lane-screen" class="screen hidden">
-    <div class="container">
-        <h1>Select Lane</h1>
-        <div id="lane-buttons" class="lane-buttons"></div>
-        <button class="btn" onclick="backToCode()">Back</button>
+    <div class="screen-header">
+            <button class="btn" onclick="backToCode()">Back</button>
+            <h2 class="screen-title">Select Lane</h2>
+            <div></div>
+        </div>
+    <div class="container">        
+        <div id="lane-buttons" class="lane-buttons"></div>        
     </div>
 </div>
 
@@ -44,7 +47,7 @@
     <div class="container">
         <h1 id="lane-pw-screen-title">Lane Password</h1>
         <p class="lane-pw-hint">Write this down — you may need it if accessing from another device.</p>
-        <div id="lane-pw-display" class="lane-pw-box" onclick="copyLanePassword()" title="Tap to copy">
+        <div id="lane-pw-display" class="lane-pw-box" onclick="copyLanePassword()" ontouchstart="event.preventDefault();copyLanePassword();" title="Tap to copy">
             <!-- password injected by JS -->
         </div>
         <p class="lane-pw-copy-hint">Tap to copy</p>
@@ -67,14 +70,13 @@
 
 <!-- Participants list -->
 <div id="participants-screen" class="screen hidden">
-    <div class="container">
-        <div class="lane-header">
-            <h2>Lane <span id="current-lane"></span></h2>
-            <span id="lane-badge" class="lane-badge"></span>
-        </div>
-        <button class="btn btn-success hidden" id="add-participant-btn" onclick="showAddParticipant()">+ Add Participant</button>
+    <div class="participants-top-bar">
+        <button class="btn" onclick="backToLane()">← Lane</button>
+        <h2 class="participants-title">Lane <span id="lane-badge" class="lane-badge"></span></h2>
+        <button class="btn btn-success btn-sm hidden" id="add-participant-btn" onclick="showAddParticipant()">+ Add</button>
+    </div>
+    <div class="container participants-body">
         <div id="participants-list"></div>
-        <button class="btn" onclick="backToLane()">← Change Lane</button>
     </div>
 </div>
 
@@ -127,6 +129,7 @@
             <button class="score-btn white"  onclick="inputScore(2)">2</button>
             <button class="score-btn white"  onclick="inputScore(1)">1</button>
             <button class="score-btn miss"   onclick="inputScore(0)">M</button>
+            <button class="score-btn delete-btn" onclick="deleteLastScore()" title="Delete last score">⌫</button>
         </div>
     </div>
 </div>

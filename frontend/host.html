@@ -40,13 +40,11 @@
         <div class="admin-header">
             <div>
                 <h1>Admin Panel</h1>
-                <div class="event-meta">
-                    <span id="event-code-display" class="event-meta-badge clickable-badge" title="Click to copy code">—</span>
-                    <span id="event-password-display" class="event-meta-badge event-pw-badge clickable-badge" title="Click to copy password"></span>
-                </div>
-                <div class="copy-link-buttons">
-                    <button class="btn-copy-link" id="btn-copy-client"  onclick="copyLink('client')">📋 Client Link</button>
-                    <button class="btn-copy-link" id="btn-copy-viewer"  onclick="copyLink('viewer')">📋 Viewer Link</button>
+                <div class="event-meta-row">
+                    <span id="event-code-display" class="event-meta-badge clickable-badge" title="Tap to copy code">—</span>
+                    <span id="event-password-display" class="event-meta-badge event-pw-badge clickable-badge" title="Tap to copy password"></span>
+                    <button class="btn-copy-link" id="btn-copy-client"  onclick="copyLink('client')">📋 Client</button>
+                    <button class="btn-copy-link" id="btn-copy-viewer"  onclick="copyLink('viewer')">📋 Viewer</button>
                     <button class="btn-icon" id="btn-settings" onclick="openSettingsModal()" title="Event Settings">⚙️</button>
                 </div>
             </div>

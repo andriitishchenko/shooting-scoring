@@ -16,13 +16,6 @@
 }
 
 /* ── Lane header ────────────────────────────────────────────────────────── */
-.lane-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
 .lane-badge {
     font-size: var(--font-sm);
     font-weight: 600;
@@ -30,6 +23,41 @@
     border-radius: var(--radius-full);
     background: #e8f0fe;
     color: var(--primary);
+}
+
+/* ── Participants screen top bar (single sticky row) ─────────────────────── */
+.participants-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: white;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: var(--spacing-sm);
+    flex-wrap: nowrap;
+}
+
+.participants-top-bar .btn { padding: var(--spacing-sm) var(--spacing-md); min-height: auto; font-size: var(--font-base); }
+
+.participants-title {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    margin: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+
+.participants-body {
+    padding-top: var(--spacing-sm);
 }
 
 /* ── Lane password screens ──────────────────────────────────────────────── */
@@ -41,6 +69,9 @@
 
 /* The password display box — tappable to copy */
 .lane-pw-box {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
     font-size: 2.5rem;
     font-weight: 800;
     letter-spacing: 0.2em;
@@ -132,7 +163,7 @@
     background: var(--gray-50);
 }
 
-.score-header {
+.screen-header, .score-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -143,6 +174,11 @@
     top: 0;
     z-index: 100;
 }
+
+.screen-header h2 { margin: 0; font-size: var(--font-xl); }
+.screen-header .screen-title { font-size: var(--font-3xl); font-weight: 700; color: var(--primary); }
+.screen-header .btn { padding: var(--spacing-sm) var(--spacing-md); min-height: auto; font-size: var(--font-base); }
+
 
 .score-header h2 { margin: 0; font-size: var(--font-xl); }
 .score-header #total-score { font-size: var(--font-3xl); font-weight: 700; color: var(--primary); }
@@ -185,6 +221,9 @@
     min-height: 60px;
     cursor: pointer;
     transition: all 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 .shot-btn:active { transform: scale(0.95); }
@@ -222,6 +261,9 @@
     cursor: pointer;
     transition: all 0.1s;
     box-shadow: var(--shadow-sm);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 .score-btn:active { transform: scale(0.95); box-shadow: none; }
@@ -231,7 +273,14 @@
 .score-btn.blue   { background: var(--color-blue); color: white; }
 .score-btn.black  { background: var(--color-black); color: white; }
 .score-btn.white  { background: var(--color-white); color: #000; border: 2px solid var(--gray-400); }
-.score-btn.miss   { background: var(--color-miss); color: white; }
+.score-btn.miss      { background: var(--color-miss); color: white; }
+.score-btn.delete-btn {
+    background: #2c2c2c;
+    color: #ff6b6b;
+    font-size: var(--font-xl);
+    border: 2px solid #444;
+}
+.score-btn.delete-btn:active { background: #111; }
 
 /* ── Distance summary tags ─────────────────────────────────────────────── */
 .participant-dist-summary { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }

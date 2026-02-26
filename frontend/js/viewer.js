@@ -134,7 +134,6 @@ function renderParticipantRoster(participants) {
             <div class="empty-state">
                 <h3>Waiting for participants…</h3>
                 <p>Competition has not started yet.</p>
-                <p class="empty-code">Code: ${currentCode}</p>
             </div>`;
         return;
     }
@@ -196,7 +195,6 @@ function renderLeaderboard(grouped) {
             <div class="empty-state">
                 <h3>No results yet</h3>
                 <p>Waiting for participants to submit scores…</p>
-                <p class="empty-code">Code: ${currentCode}</p>
             </div>`;
         return;
     }
