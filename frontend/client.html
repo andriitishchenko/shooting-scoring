@@ -9,107 +9,132 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/client.css">
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-3D4ZG2T18X');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-3D4ZG2T18X');
+    </script>
 </head>
 <body>
-    <!-- Code entry screen -->
-    <div id="code-screen" class="screen">
-        <div class="container">
-            <h1>CLIENT Entry</h1>
-            <input type="text" id="code-input" maxlength="8" placeholder="Enter code" style="text-transform: uppercase;">
-            <button class="btn btn-primary" onclick="clientEnter()">Enter</button>
-            <button class="btn" onclick="location.href='index.html'">Back</button>
-        </div>
-    </div>
 
-    <!-- Lane selection -->
-    <div id="lane-screen" class="screen hidden">
-        <div class="container">
-            <h1>Select Lane</h1>
-            <div id="lane-buttons"></div>
-            <button class="btn" onclick="backToCode()">Back</button>
-        </div>
+<!-- Code entry -->
+<div id="code-screen" class="screen">
+    <div class="container">
+        <h1>CLIENT Entry</h1>
+        <input type="text" id="code-input" maxlength="8" placeholder="Enter event code"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;">
+        <button class="btn btn-primary" onclick="clientEnter()">Enter</button>
+        <button class="btn" onclick="location.href='index.html'">Back</button>
     </div>
+</div>
 
-    <!-- Participants list -->
-    <div id="participants-screen" class="screen hidden">
-        <div class="container">
+<!-- Lane selection -->
+<div id="lane-screen" class="screen hidden">
+    <div class="container">
+        <h1>Select Lane</h1>
+        <div id="lane-buttons" class="lane-buttons"></div>
+        <button class="btn" onclick="backToCode()">Back</button>
+    </div>
+</div>
+
+<!-- Lane first-entry: show password (dynamically injected via JS — no password in HTML) -->
+<div id="lane-password-screen" class="screen hidden">
+    <div class="container">
+        <h1 id="lane-pw-screen-title">Lane Password</h1>
+        <p class="lane-pw-hint">Write this down — you may need it if accessing from another device.</p>
+        <div id="lane-pw-display" class="lane-pw-box" onclick="copyLanePassword()" title="Tap to copy">
+            <!-- password injected by JS -->
+        </div>
+        <p class="lane-pw-copy-hint">Tap to copy</p>
+        <button class="btn btn-primary" onclick="proceedAfterPassword()">Continue →</button>
+    </div>
+</div>
+
+<!-- Lane password prompt (someone else already on this lane) -->
+<div id="lane-auth-screen" class="screen hidden">
+    <div class="container">
+        <h1 id="lane-auth-title">Lane Password Required</h1>
+        <p class="lane-pw-hint">This lane is already in use. Enter the password to access it.</p>
+        <input type="text" id="lane-pw-input" placeholder="6-character password" maxlength="6"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:0.2em;">
+        <div id="lane-pw-error" class="error-banner hidden"></div>
+        <button class="btn btn-primary" onclick="submitLanePassword()">Enter</button>
+        <button class="btn" onclick="backToLane()">← Back to Lanes</button>
+    </div>
+</div>
+
+<!-- Participants list -->
+<div id="participants-screen" class="screen hidden">
+    <div class="container">
+        <div class="lane-header">
             <h2>Lane <span id="current-lane"></span></h2>
-            <button class="btn btn-success" id="add-participant-btn" onclick="showAddParticipant()">Add Participant</button>
-            <div id="participants-list"></div>
-            <button class="btn" onclick="backToLane()">Change Lane</button>
+            <span id="lane-badge" class="lane-badge"></span>
+        </div>
+        <button class="btn btn-success hidden" id="add-participant-btn" onclick="showAddParticipant()">+ Add Participant</button>
+        <div id="participants-list"></div>
+        <button class="btn" onclick="backToLane()">← Change Lane</button>
+    </div>
+</div>
+
+<!-- Add participant form -->
+<div id="add-participant-screen" class="screen hidden">
+    <div class="container">
+        <h2>New Participant</h2>
+        <form id="participant-form" onsubmit="submitParticipant(event)">
+            <input type="text"   id="p-name"          placeholder="Name *" required>
+            <input type="text"   id="p-shift"         placeholder="Shift (A, B, C…) *" maxlength="1" required style="text-transform:uppercase;">
+            <select id="p-gender">
+                <option value="">Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <input type="text"   id="p-age-category"  placeholder="Age Category">
+            <select id="p-shooting-type">
+                <option value="">Shooting Type</option>
+                <option value="compound">Compound Bow</option>
+                <option value="barebow">Barebow</option>
+                <option value="recurve">Recurve</option>
+            </select>
+            <input type="text"   id="p-group"         placeholder="Group">
+            <input type="text"   id="p-number"        placeholder="Personal Number">
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn" onclick="hideAddParticipant()">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<!-- Score input -->
+<div id="score-screen" class="screen hidden">
+    <div class="score-input-screen">
+        <div class="score-header">
+            <button class="btn" onclick="backToParticipants()">← Back</button>
+            <h2 id="participant-name"></h2>
+            <div id="total-score">0</div>
+        </div>
+        <div class="score-grid" id="score-grid"></div>
+        <div class="score-buttons">
+            <button class="score-btn yellow" onclick="inputScore(10,true)">X</button>
+            <button class="score-btn yellow" onclick="inputScore(10,false)">10</button>
+            <button class="score-btn yellow" onclick="inputScore(9)">9</button>
+            <button class="score-btn red"    onclick="inputScore(8)">8</button>
+            <button class="score-btn red"    onclick="inputScore(7)">7</button>
+            <button class="score-btn blue"   onclick="inputScore(6)">6</button>
+            <button class="score-btn blue"   onclick="inputScore(5)">5</button>
+            <button class="score-btn black"  onclick="inputScore(4)">4</button>
+            <button class="score-btn black"  onclick="inputScore(3)">3</button>
+            <button class="score-btn white"  onclick="inputScore(2)">2</button>
+            <button class="score-btn white"  onclick="inputScore(1)">1</button>
+            <button class="score-btn miss"   onclick="inputScore(0)">M</button>
         </div>
     </div>
+</div>
 
-    <!-- Add participant form -->
-    <div id="add-participant-screen" class="screen hidden">
-        <div class="container">
-            <h2>New Participant</h2>
-            <form id="participant-form" onsubmit="submitParticipant(event)">
-                <input type="text" id="p-name" placeholder="Name *" required>
-                <input type="text" id="p-shift" placeholder="Shift (A, B, C...) *" maxlength="1" required style="text-transform: uppercase;">
-                <select id="p-gender">
-                    <option value="">Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                </select>
-                <input type="text" id="p-age-category" placeholder="Age Category">
-                <select id="p-shooting-type">
-                    <option value="">Shooting Type</option>
-                    <option value="compound">Compound Bow</option>
-                    <option value="barebow">Barebow</option>
-                    <option value="recurve">Recurve</option>
-                </select>
-                <input type="text" id="p-group" placeholder="Group">
-                <input type="text" id="p-number" placeholder="Personal Number">
-                <button type="submit" class="btn btn-primary">Add</button>
-                <button type="button" class="btn" onclick="hideAddParticipant()">Cancel</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Score input screen -->
-    <div id="score-screen" class="screen hidden">
-        <div class="score-input-screen">
-            <div class="score-header">
-                <button class="btn" onclick="backToParticipants()">← Back</button>
-                <h2 id="participant-name"></h2>
-                <div id="total-score">0</div>
-            </div>
-
-            <div class="score-grid" id="score-grid"></div>
-
-            <div class="score-buttons">
-                <button class="score-btn yellow" onclick="inputScore(10, true)">X</button>
-                <button class="score-btn yellow" onclick="inputScore(10, false)">10</button>
-                <button class="score-btn yellow" onclick="inputScore(9)">9</button>
-                <button class="score-btn red" onclick="inputScore(8)">8</button>
-                <button class="score-btn red" onclick="inputScore(7)">7</button>
-                
-                <button class="score-btn blue" onclick="inputScore(6)">6</button>
-                <button class="score-btn blue" onclick="inputScore(5)">5</button>
-                <button class="score-btn black" onclick="inputScore(4)">4</button>
-                <button class="score-btn black" onclick="inputScore(3)">3</button>
-                <button class="score-btn white" onclick="inputScore(2)">2</button>
-                
-                <button class="score-btn white" onclick="inputScore(1)">1</button>
-                <button class="score-btn miss" onclick="inputScore(0)">M</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/websocket.js"></script>
-    <script src="js/client.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/websocket.js"></script>
+<script src="js/client.js"></script>
 </body>
 </html>

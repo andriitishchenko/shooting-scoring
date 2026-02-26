@@ -1,91 +1,66 @@
-// LocalStorage Wrapper
+// LocalStorage Wrapper — all sensitive data stays here, never in HTML
 class Storage {
     static set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-            console.error('LocalStorage save error:', e);
-        }
+        try { localStorage.setItem(key, JSON.stringify(value)); }
+        catch (e) { console.error('Storage.set error:', e); }
     }
 
     static get(key, defaultValue = null) {
         try {
             const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
+            return item !== null ? JSON.parse(item) : defaultValue;
         } catch (e) {
-            console.error('LocalStorage get error:', e);
+            console.error('Storage.get error:', e);
             return defaultValue;
         }
     }
 
     static remove(key) {
+        try { localStorage.removeItem(key); }
+        catch (e) { console.error('Storage.remove error:', e); }
+    }
+
+    // ── Event code ──────────────────────────────────────────────────────────
+    static saveEventCode(code, role = 'host')  { this.set(`${role}_code`, code); }
+    static getEventCode(role = 'host')          { return this.get(`${role}_code`); }
+    static clearEventCode(role = 'host')        { this.remove(`${role}_code`); }
+
+    // ── Host session ────────────────────────────────────────────────────────
+    static saveHostSession(sessionId)   { this.set('host_session_id', sessionId); }
+    static getHostSession()             { return this.get('host_session_id'); }
+    static clearHostSession()           { this.remove('host_session_id'); }
+
+    // ── Host password (displayed in UI, cleared on exit) ───────────────────
+    static saveHostPassword(pw)         { this.set('host_password', pw); }
+    static getHostPassword()            { return this.get('host_password', ''); }
+    static clearHostPassword()          { this.remove('host_password'); }
+
+    // ── Viewer session ──────────────────────────────────────────────────────
+    static saveViewerSession(sessionId) { this.set('viewer_session_id', sessionId); }
+    static getViewerSession()           { return this.get('viewer_session_id'); }
+    static clearViewerSession()         { this.remove('viewer_session_id'); }
+
+    // ── Client lane ─────────────────────────────────────────────────────────
+    static saveLane(lane)               { this.set('client_lane', lane); }
+    static getLane()                    { return this.get('client_lane'); }
+    static clearLane()                  { this.remove('client_lane'); }
+
+    // ── Client lane session ──────────────────────────────────────────────────
+    static saveLaneSession(lane, sid)   { this.set(`lane_session_${lane}`, sid); }
+    static getLaneSession(lane)         { return this.get(`lane_session_${lane}`); }
+    static clearLaneSession(lane)       { this.remove(`lane_session_${lane}`); }
+
+    // ── Participant state cache ──────────────────────────────────────────────
+    static saveParticipantState(pid, state) { this.set(`pstate_${pid}`, state); }
+    static getParticipantState(pid)         { return this.get(`pstate_${pid}`); }
+    static clearAllParticipantStates() {
         try {
-            localStorage.removeItem(key);
-        } catch (e) {
-            console.error('LocalStorage remove error:', e);
-        }
-    }
-
-    static clear() {
-        try {
-            localStorage.clear();
-        } catch (e) {
-            console.error('LocalStorage clear error:', e);
-        }
-    }
-
-    // Application-specific methods
-    static saveEventCode(code, role = 'host') {
-        this.set(`${role}_code`, code);
-    }
-
-    static getEventCode(role = 'host') {
-        return this.get(`${role}_code`);
-    }
-
-    static clearEventCode(role = 'host') {
-        this.remove(`${role}_code`);
-    }
-
-    static saveResults(participantId, results) {
-        const key = `results_${participantId}`;
-        this.set(key, results);
-    }
-
-    static getResults(participantId) {
-        const key = `results_${participantId}`;
-        return this.get(key, []);
-    }
-
-    static clearResults(participantId) {
-        const key = `results_${participantId}`;
-        this.remove(key);
-    }
-
-    static clearAllParticipantResults() {
-        try {
-            const keysToRemove = [];
+            const keys = [];
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('results_')) {
-                    keysToRemove.push(key);
-                }
+                const k = localStorage.key(i);
+                if (k && (k.startsWith('pstate_') || k.startsWith('results_'))) keys.push(k);
             }
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-        } catch (e) {
-            console.error('LocalStorage clear all results error:', e);
-        }
-    }
-
-    static saveLane(lane) {
-        this.set('client_lane', lane);
-    }
-
-    static getLane() {
-        return this.get('client_lane');
-    }
-
-    static clearLane() {
-        this.remove('client_lane');
+            keys.forEach(k => localStorage.removeItem(k));
+        } catch (e) { console.error('clearAllParticipantStates error:', e); }
     }
 }

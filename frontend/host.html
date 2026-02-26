@@ -8,189 +8,181 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/host.css">
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-3D4ZG2T18X');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-3D4ZG2T18X');
+    </script>
 </head>
 <body>
-    <div id="code-screen" class="screen">
-        <div class="container">
-            <h1>HOST Login</h1>
-            <p>You may encounter other events. If this isn't your host, please create a different code.</p>
-            <input type="text" id="code-input" maxlength="6" placeholder="Enter 6 alphanumeric code" style="text-transform: uppercase;">
-            <button class="btn btn-primary" onclick="hostEnter()">Enter</button>
-            <button class="btn btn-secondary" onclick="location.href='index.html'">Back</button>
-        </div>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────────────────── -->
+<div id="code-screen" class="screen">
+    <div class="container">
+        <h1>HOST Login</h1>
+        <p class="login-hint">Enter event code to manage your competition.</p>
+        <input type="text" id="code-input" maxlength="6" placeholder="6-character event code"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;">
+        <input type="password" id="password-input" placeholder="Admin password (leave empty for new event)"
+               autocomplete="off" class="password-input">
+        <button class="btn btn-primary" onclick="hostEnter()">Enter</button>
+        <button class="btn btn-secondary" onclick="location.href='index.html'">Back</button>
     </div>
+</div>
 
-    <div id="admin-screen" class="screen hidden">
-        <div class="container">
-            <!-- HEADER -->
-            <div class="admin-header">
-                <div>
-                    <h1>Admin Panel</h1>
-                    <span id="event-code-display"></span>
-                    <div class="copy-link-buttons" id="copy-link-buttons">
-                        <button class="btn-copy-link" id="btn-copy-client" onclick="copyLink('client')">📋 Copy for Client</button>
-                        <button class="btn-copy-link" id="btn-copy-viewer" onclick="copyLink('viewer')">📋 Copy for Viewer</button>
+<!-- ── ADMIN SCREEN ──────────────────────────────────────────────────────── -->
+<div id="admin-screen" class="screen hidden">
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="admin-header">
+            <div>
+                <h1>Admin Panel</h1>
+                <div class="event-meta">
+                    <span id="event-code-display" class="event-meta-badge clickable-badge" title="Click to copy code">—</span>
+                    <span id="event-password-display" class="event-meta-badge event-pw-badge clickable-badge" title="Click to copy password"></span>
+                </div>
+                <div class="copy-link-buttons">
+                    <button class="btn-copy-link" id="btn-copy-client"  onclick="copyLink('client')">📋 Client Link</button>
+                    <button class="btn-copy-link" id="btn-copy-viewer"  onclick="copyLink('viewer')">📋 Viewer Link</button>
+                    <button class="btn-icon" id="btn-settings" onclick="openSettingsModal()" title="Event Settings">⚙️</button>
+                </div>
+            </div>
+            <div id="status-badge" class="status-badge"></div>
+        </div>
+
+        <!-- CONTROL PANEL -->
+        <div class="control-panel">
+            <div class="control-buttons">
+                <button class="btn btn-success" id="start-btn"  onclick="startEvent()"><span>▶</span> Start</button>
+                <button class="btn btn-danger hidden" id="finish-btn" onclick="finishEvent()"><span>■</span> Finish</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('csv-import').click()"><span>📥</span> Import CSV</button>
+                <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(event)">
+                <button class="btn btn-tertiary" onclick="exportCSV()"><span>⬇</span> Export CSV</button>
+                <button class="btn" onclick="exitHost()"><span>←</span> Exit</button>
+            </div>
+        </div>
+
+        <!-- DISTANCES -->
+        <div class="distances-panel">
+            <div class="distances-header">
+                <h2>Distances</h2>
+                <button class="btn btn-success btn-sm" id="add-distance-btn" onclick="addDistance()">+ Add Distance</button>
+            </div>
+            <div id="distances-list" class="distances-list"></div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-btn-participants" onclick="switchTab('participants')">👥 PARTICIPANTS</button>
+            <button class="tab-btn"        id="tab-btn-results"      onclick="switchTab('results')">🏆 RESULTS</button>
+        </div>
+
+        <!-- PARTICIPANTS TAB -->
+        <div id="tab-participants" class="tab-content active">
+            <div class="tab-header">
+                <h2>Participants</h2>
+                <div class="tab-actions">
+                    <button class="btn btn-success" id="add-participant-btn" onclick="showAddParticipantModal()">+ Add Participant</button>
+                </div>
+            </div>
+            <div id="participants-container" class="participants-grid"></div>
+        </div>
+
+        <!-- RESULTS TAB -->
+        <div id="tab-results" class="tab-content hidden">
+            <div class="tab-header">
+                <h2>Results</h2>
+                <div class="results-filters">
+                    <select id="filter-gender" onchange="filterResults()">
+                        <option value="">All Genders</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                    <select id="filter-type" onchange="filterResults()">
+                        <option value="">All Types</option>
+                        <option value="compound">Compound Bow</option>
+                        <option value="barebow">Barebow</option>
+                        <option value="recurve">Recurve</option>
+                    </select>
+                    <button class="btn btn-sm btn-secondary" onclick="loadResults()">🔄 Refresh</button>
+                </div>
+            </div>
+            <div id="results-container" class="results-table-container"></div>
+        </div>
+    </div><!-- /container -->
+
+    <!-- PARTICIPANT MODAL -->
+    <div id="participant-modal" class="modal hidden" onclick="if(event.target===this)closeParticipantModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title">Add Participant</h2>
+                <button class="modal-close" onclick="closeParticipantModal()">×</button>
+            </div>
+            <form id="participant-form" onsubmit="submitParticipant(event)">
+                <input type="hidden" id="edit-participant-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input type="text" id="p-name" required>
                     </div>
                 </div>
-                <div id="status-badge" class="status-badge"></div>
-            </div>
-
-            <!-- CONTROL PANEL -->
-            <div class="control-panel">
-                <div class="control-buttons">
-                    <button class="btn btn-success" id="start-btn" onclick="startEvent()">
-                        <span>▶</span> Start
-                    </button>
-                    <button class="btn btn-danger hidden" id="finish-btn" onclick="finishEvent()">
-                        <span>■</span> Finish
-                    </button>
-                    <button class="btn btn-secondary" onclick="document.getElementById('csv-import').click()">
-                        <span>📥</span> Import CSV
-                    </button>
-                    <input type="file" id="csv-import" accept=".csv" style="display: none;" onchange="importCSV(event)">
-                    <button class="btn btn-tertiary" onclick="exportCSV()">
-                        <span>⬇</span> Export CSV
-                    </button>
-                    <button class="btn" onclick="exitHost()">
-                        <span>←</span> Exit
-                    </button>
-                </div>
-            </div>
-
-            <!-- DISTANCES PANEL -->
-            <div class="distances-panel">
-                <div class="distances-header">
-                    <h2>Distances</h2>
-                    <button class="btn btn-success btn-sm" id="add-distance-btn" onclick="addDistance()">+ Add Distance</button>
-                </div>
-                <div id="distances-list" class="distances-list"></div>
-            </div>
-
-            <!-- TABS -->
-            <div class="tabs">
-                <button class="tab-btn active" id="tab-btn-participants" onclick="switchTab('participants')">
-                    👥 PARTICIPANTS
-                </button>
-                <button class="tab-btn" id="tab-btn-results" onclick="switchTab('results')">
-                    🏆 RESULTS
-                </button>
-            </div>
-
-            <!-- TAB CONTENT: PARTICIPANTS -->
-            <div id="tab-participants" class="tab-content active">
-                <div class="tab-header">
-                    <h2>Participants</h2>
-                    <div class="tab-actions">
-                        <button class="btn btn-success" id="add-participant-btn" onclick="showAddParticipantModal()">
-                            + Add Participant
-                        </button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Lane *</label>
+                        <input type="number" id="p-lane" min="1" max="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Shift *</label>
+                        <input type="text" id="p-shift" maxlength="1" required style="text-transform:uppercase;">
                     </div>
                 </div>
-                <div id="participants-container" class="participants-grid"></div>
-            </div>
-
-            <!-- TAB CONTENT: RESULTS -->
-            <div id="tab-results" class="tab-content hidden">
-                <div class="tab-header">
-                    <h2>Results</h2>
-                    <div class="results-filters">
-                        <select id="filter-gender" onchange="filterResults()">
-                            <option value="">All Genders</option>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="p-gender">
+                            <option value="">Not specified</option>
                             <option value="male">Male</option>
                             <option value="female">Female</option>
                         </select>
-                        <select id="filter-type" onchange="filterResults()">
-                            <option value="">All Types</option>
+                    </div>
+                    <div class="form-group">
+                        <label>Age Category</label>
+                        <input type="text" id="p-age-category" placeholder="e.g., Junior, Senior">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Shooting Type</label>
+                        <select id="p-shooting-type">
+                            <option value="">Not specified</option>
                             <option value="compound">Compound Bow</option>
                             <option value="barebow">Barebow</option>
                             <option value="recurve">Recurve</option>
                         </select>
-                        <button class="btn btn-sm btn-secondary" onclick="loadResults()">🔄 Refresh</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Group</label>
+                        <input type="text" id="p-group">
                     </div>
                 </div>
-                <div id="results-container" class="results-table-container"></div>
-            </div>
-        </div>
-
-        <!-- ADD/EDIT PARTICIPANT MODAL -->
-        <div id="participant-modal" class="modal hidden" onclick="if(event.target === this) closeParticipantModal()">
-            <div class="modal-content" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <h2 id="modal-title">Add Participant</h2>
-                    <button class="modal-close" onclick="closeParticipantModal()">×</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Personal Number</label>
+                        <input type="text" id="p-number">
+                    </div>
                 </div>
-                <form id="participant-form" onsubmit="submitParticipant(event)">
-                    <input type="hidden" id="edit-participant-id" value="">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Name *</label>
-                            <input type="text" id="p-name" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Lane *</label>
-                            <input type="number" id="p-lane" min="1" max="50" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Shift *</label>
-                            <input type="text" id="p-shift" maxlength="1" required style="text-transform: uppercase;">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Gender</label>
-                            <select id="p-gender">
-                                <option value="">Not specified</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Age Category</label>
-                            <input type="text" id="p-age-category" placeholder="e.g., Junior, Senior">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Shooting Type</label>
-                            <select id="p-shooting-type">
-                                <option value="">Not specified</option>
-                                <option value="compound">Compound Bow</option>
-                                <option value="barebow">Barebow</option>
-                                <option value="recurve">Recurve</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Group</label>
-                            <input type="text" id="p-group">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Personal Number</label>
-                            <input type="text" id="p-number">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn" onclick="closeParticipantModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="submit-participant-btn">Add Participant</button>
-                    </div>
-                </form>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeParticipantModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submit-participant-btn">Add Participant</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- DISTANCE DETAIL POPUP -->
+    <!-- DISTANCE DETAIL MODAL -->
     <div id="detail-modal" class="modal hidden" onclick="if(event.target===this)closeDetailModal()">
         <div class="modal-content detail-modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
@@ -204,10 +196,45 @@
         </div>
     </div>
 
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/websocket.js"></script>
-    <script src="js/host.js"></script>
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal hidden" onclick="if(event.target===this)closeSettingsModal()">
+        <div class="modal-content settings-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>⚙️ Event Settings</h2>
+                <button class="modal-close" onclick="closeSettingsModal()">×</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-group">
+                    <label class="settings-label">HOST Admin Password</label>
+                    <input type="password" id="setting-host-pw" placeholder="Leave empty to disable" autocomplete="new-password">
+                    <small class="settings-hint">Required to re-enter the admin panel</small>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">VIEWER Password</label>
+                    <input type="password" id="setting-viewer-pw" placeholder="Leave empty to disable" autocomplete="new-password">
+                    <small class="settings-hint">Required to access the leaderboard viewer</small>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label settings-label-checkbox">
+                        <input type="checkbox" id="setting-allow-add" class="settings-checkbox">
+                        Allow clients to self-register on their lane
+                    </label>
+                    <small class="settings-hint">Enables "Add Participant" button on client lane screen</small>
+                </div>
+                <div id="settings-error" class="settings-error hidden"></div>
+                <div class="modal-footer">
+                    <button class="btn" onclick="closeSettingsModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div><!-- /admin-screen -->
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/websocket.js"></script>
+<script src="js/host.js"></script>
 </body>
 </html>

@@ -1,32 +1,48 @@
 # Shooting Scoring System
 
-Web application for managing and tracking scores in shooting competitions with real-time leaderboard display.
+Web application for managing and scoring archery/shooting competitions.
+Each competition runs as an isolated event with its own SQLite database.
+Three distinct roles — **HOST**, **CLIENT**, **VIEWER** — access the same
+event via a shared code.
+
+---
 
 ## Features
 
-- **Private Room System**: Each event has a unique 4-digit code
-- **Three User Roles**:
-  - **HOST**: Create and manage events, control competition flow, export results
-  - **CLIENT**: Enter scores for participants on specific lanes
-  - **VIEWER**: Display live leaderboard with auto-scroll for large displays
-- **Real-time Updates**: WebSocket-based live synchronization
-- **Offline Support**: LocalStorage ensures data persistence even after page reload
-- **Mobile Optimized**: Touch-friendly interface with disabled zoom/gestures
+- **Session-based auth** — host, viewer and each lane have independent
+  sessions stored in `localStorage`; no passwords appear in HTML or URLs
+- **Single-event databases** — one SQLite file per event code; no migrations,
+  always created fresh from the current schema
+- **Role separation** — host controls everything; clients enter scores for
+  their own lane; viewers display the live leaderboard
+- **Multi-distance support** — unlimited ordered distances per event
+  (e.g. 18 m → 25 m → 30 m), each activated / finished independently
+- **Pre-competition roster** — viewer shows participant list sorted by lane
+  and shift before the competition starts; switches to ranked leaderboard
+  automatically once host starts the event
+- **Real-time sync** — WebSocket broadcast from host keeps all clients
+  updated on event/distance status and session resets
+- **Self-registration control** — host can allow or block clients from
+  adding participants; enforced on both server and client side
+- **Click-to-copy** — event code and passwords are copyable badges
+- **Auto-detect backend** — `config.js` derives API/WS URLs from
+  `window.location`; no hard-coded IPs needed
+
+---
 
 ## Technology Stack
 
-### Backend
-- Python 3.12
-- FastAPI (async web framework)
-- SQLite (separate database per event)
-- WebSockets for real-time communication
-- Pydantic for data validation
+| Layer | Technology |
+|-------|-----------|
+| Backend runtime | Python 3.12+ |
+| Web framework | FastAPI (async) |
+| Database | SQLite via `aiosqlite` |
+| Real-time | WebSockets (FastAPI native) |
+| Data validation | Pydantic v2 |
+| Frontend | Vanilla HTML5 + JS (ES2020) + CSS3 |
+| State persistence | `localStorage` |
 
-### Frontend
-- Pure HTML5
-- Vanilla JavaScript (ES6+)
-- CSS3 (Grid, Flexbox, Custom Properties)
-- No frameworks or dependencies
+---
 
 ## Project Structure
 
@@ -34,204 +50,219 @@ Web application for managing and tracking scores in shooting competitions with r
 shooting-scoring/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI app
-│   │   ├── config.py            # Configuration
-│   │   ├── database.py          # Database manager
-│   │   ├── models.py            # Pydantic models
-│   │   ├── websocket_manager.py # WebSocket handler
+│   │   ├── main.py               # FastAPI app, router registration
+│   │   ├── config.py             # DATABASE_DIR, ALLOWED_ORIGINS
+│   │   ├── database.py           # DatabaseManager, init_db()
+│   │   ├── models.py             # Pydantic request/response models
+│   │   ├── websocket_manager.py  # In-memory WS connection pool
 │   │   └── routers/
-│   │       ├── events.py        # Event endpoints
-│   │       ├── participants.py  # Participant endpoints
-│   │       ├── results.py       # Results endpoints
-│   │       └── websocket.py     # WebSocket endpoint
-│   ├── databases/               # SQLite databases (created at runtime)
+│   │       ├── events.py         # CRUD + event lifecycle; event fields
+│   │       │                     #   stored as properties (no event table)
+│   │       ├── distances.py      # Distances CRUD + status transitions
+│   │       ├── participants.py   # Participants CRUD + allow_add check
+│   │       ├── results.py        # Shot saving, leaderboard, state restore
+│   │       ├── properties.py     # Auth settings (passwords, allow_add)
+│   │       ├── sessions.py       # Host/viewer/lane session management
+│   │       └── websocket.py      # WS endpoint + message relay
+│   ├── databases/                # Created at runtime — one .db per event
 │   └── requirements.txt
 └── frontend/
-    ├── index.html               # Main entry page
-    ├── host.html                # Host admin panel
-    ├── client.html              # Client score entry
-    ├── viewer.html              # Leaderboard viewer
-    ├── css/
-    │   ├── reset.css
-    │   ├── variables.css
-    │   ├── main.css
-    │   ├── host.css
-    │   ├── client.css
-    │   └── viewer.css
-    └── js/
-        ├── config.js            # Configuration
-        ├── api.js               # API client
-        ├── websocket.js         # WebSocket client
-        ├── storage.js           # LocalStorage wrapper
-        ├── host.js              # Host logic
-        ├── client.js            # Client logic
-        └── viewer.js            # Viewer logic
+    ├── index.html                # Landing page (role selection)
+    ├── host.html / host.js       # Host admin panel
+    ├── client.html / client.js   # Lane scoring interface
+    ├── viewer.html / viewer.js   # Live leaderboard display
+    ├── js/
+    │   ├── config.js             # API_BASE_URL, WS_BASE_URL (auto-detected)
+    │   ├── storage.js            # localStorage helpers (sessions, codes)
+    │   ├── api.js                # REST client (APIClient class)
+    │   └── websocket.js          # WSClient class
+    └── css/
+        ├── reset.css
+        ├── variables.css         # Design tokens
+        ├── main.css
+        ├── host.css
+        ├── client.css
+        └── viewer.css
 ```
 
-## Installation
-
-### Prerequisites
-- Python 3.12 or higher
-- pip (Python package manager)
-
-### Backend Setup
-
-1. Navigate to backend directory:
-```bash
-cd backend
-```
-
-2. Create virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Run the server:
-```bash
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-The API will be available at `http://localhost:8000`
-API documentation at `http://localhost:8000/docs`
-
-### Frontend Access
-
-The frontend is served by the FastAPI backend at `http://localhost:8000`
-
-Alternatively, you can serve it separately:
-```bash
-cd frontend
-python -m http.server 8080
-```
-Then access at `http://localhost:8080`
-
-## Usage
-
-### As HOST
-
-1. Open the application
-2. Click "HOST"
-3. Enter a 4-digit code (e.g., "ABCD")
-4. Configure number of shots
-5. Click "Start Competition"
-6. Monitor progress and export CSV when done
-
-### As CLIENT
-
-1. Open the application
-2. Click "CLIENT"
-3. Enter the code provided by HOST
-4. Select your lane number
-5. Add participants (before competition starts)
-6. Select participant to enter scores
-7. Tap score buttons to record shots
-8. Results auto-save and sync
-
-### As VIEWER
-
-1. Open the application
-2. Click "VIEWER"
-3. Enter the code provided by HOST
-4. Watch live leaderboard with auto-scroll
-5. Results grouped by gender and shooting type
-
-## Score Entry
-
-### Score Values
-- **X**: 10 points (bullseye)
-- **10-1**: Standard scores
-- **M**: Miss (0 points)
-
-### Color Coding
-- Yellow: X, 10, 9
-- Red: 8, 7
-- Blue: 6, 5
-- Black: 4, 3
-- White: 2, 1
-- Gray: M (miss)
-
-### Features
-- Auto-scroll to next empty shot
-- Series totals and cumulative scores
-- Edit previous shots by tapping
-- LocalStorage backup of all data
+---
 
 ## Database Schema
 
-Each event creates a SQLite database (`event_{CODE}.db`) with:
+Each event creates `databases/event_{CODE}.db` with these tables:
 
-### Tables
-- **event**: Event configuration and status
-- **participants**: Competitor information
-- **results**: Individual shot scores
+| Table | Purpose |
+|-------|---------|
+| `properties` | All event fields + auth settings as key-value pairs |
+| `distances` | Ordered distances with `pending / active / finished` status |
+| `participants` | Competitor info (name, lane, shift, gender, bow type…) |
+| `results` | Individual shot scores (`participant_id, distance_id, shot_number, score, is_x`) |
+| `sessions` | Auth tokens per role+identifier (`host/default`, `viewer/default`, `client/{lane}`) |
 
-## API Endpoints
+### Properties keys
+
+| Key | Description |
+|-----|-------------|
+| `event_code` | Event code (e.g. `ABC123`) |
+| `event_status` | `created` / `started` / `finished` |
+| `event_shots_count` | Default shots per distance |
+| `event_created_at` | ISO timestamp |
+| `event_started_at` | ISO timestamp |
+| `event_finished_at` | ISO timestamp |
+| `host_password` | Required to log in as host |
+| `viewer_password` | Optional; blank = public leaderboard |
+| `client_allow_add_participant` | `"true"` / `"false"` |
+
+---
+
+## API Reference
 
 ### Events
-- `POST /api/events/create` - Create new event
-- `GET /api/events/{code}` - Get event info
-- `PATCH /api/events/{code}` - Update event
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/events/create` | — | Create event, returns `host_password` + `session_id` |
+| `GET` | `/api/events/{code}` | — | Event info |
+| `PATCH` | `/api/events/{code}` | Host | Update status / shots_count |
+
+### Sessions
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/sessions/{code}/host` | — | Host login (password or saved session_id) |
+| `POST` | `/api/sessions/{code}/viewer` | — | Viewer login |
+| `POST` | `/api/sessions/{code}/lane/{n}` | — | Lane session create / auto-login |
+| `GET` | `/api/sessions/{code}/lanes` | Host | List lanes with active sessions |
+| `DELETE` | `/api/sessions/{code}/lane/{n}` | Host | Reset lane session |
+
+### Distances
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/distances/{code}` | — | List distances |
+| `POST` | `/api/distances/{code}` | Host | Add distance |
+| `PATCH` | `/api/distances/{code}/{id}` | Host | Update title / shots / status |
+| `DELETE` | `/api/distances/{code}/{id}` | Host | Delete pending distance |
 
 ### Participants
-- `POST /api/participants/{code}` - Add participant
-- `GET /api/participants/{code}` - List participants
-- `DELETE /api/participants/{code}/{id}` - Delete participant
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/participants/{code}` | — | List (optional `?lane_number=N`) |
+| `POST` | `/api/participants/{code}` | Host or lane client* | Add participant |
+| `PUT` | `/api/participants/{code}/{id}` | Host | Edit participant |
+| `DELETE` | `/api/participants/{code}/{id}` | Host | Delete participant + results |
+
+\* Client POST is rejected with `403` if `client_allow_add_participant = false`
 
 ### Results
-- `POST /api/results/{code}` - Save results
-- `GET /api/results/{code}/{participant_id}` - Get participant results
-- `GET /api/results/{code}/leaderboard` - Get leaderboard
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/results/{code}/leaderboard` | — | Grouped ranked leaderboard |
+| `GET` | `/api/results/{code}/state/{pid}` | — | Full participant state for restore |
+| `GET` | `/api/results/{code}/detail/{pid}/{did}` | — | Series detail for host popup |
+| `POST` | `/api/results/{code}` | Lane client or Host | Save shots |
+| `DELETE` | `/api/results/{code}/{pid}` | Host | Clear participant results |
+
+### Properties
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/properties/{code}` | Host | All settings |
+| `PATCH` | `/api/properties/{code}` | Host | Update settings |
+| `GET` | `/api/properties/{code}/public` | — | `client_allow_add_participant` |
 
 ### WebSocket
-- `WS /ws/{code}` - Real-time updates
+```
+WS /ws/{code}
+```
+Messages relayed to all room members:
+
+| `type` | Direction | Payload |
+|--------|-----------|---------|
+| `event_status` | host → all | `{ status, active_distance_id }` |
+| `distance_update` | host → all | `{ distance_id, status }` |
+| `refresh` | host → all | — |
+| `lane_session_reset` | host → all | `{ lane_number }` |
+| `result_update` | client → all | `{ participant_id, total_score }` |
+
+---
+
+## Session Flow
+
+```
+HOST creates event
+  └─ DB created, host_password generated, host session stored
+  └─ Returns: { code, host_password, session_id }
+
+HOST logs in later
+  └─ POST /sessions/{code}/host  { session_id: saved }   → auto-login
+  └─ POST /sessions/{code}/host  { password: "..." }      → new session_id
+
+CLIENT selects lane N
+  └─ POST /sessions/{code}/lane/N  {}
+       ├─ No session exists → { status: "created", session_id, password }
+       │    CLIENT shows password screen, user writes down password
+       ├─ Session exists + saved session_id matches → { status: "ok" }
+       └─ Session exists + no match → { status: "password_required" }
+            CLIENT prompts for password
+
+HOST resets lane N
+  └─ DELETE /sessions/{code}/lane/N   (host session required)
+  └─ WS broadcast: { type: "lane_session_reset", lane_number: N }
+  └─ CLIENT on lane N clears localStorage, returns to lane selection
+```
+
+---
+
+## Running Locally
+
+```bash
+# Backend
+cd backend
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend is served by FastAPI from /
+# Open http://localhost:8000
+```
+
+Interactive API docs: `http://localhost:8000/docs`
+
+---
 
 ## Configuration
 
-Edit `frontend/js/config.js` to change:
-- API_BASE_URL: Backend API URL
-- WS_BASE_URL: WebSocket URL
-- CODE_LENGTH: Code length (default: 6)
-
-Edit `backend/app/config.py` for backend settings:
-- DATABASE_DIR: Database storage location
-- ALLOWED_ORIGINS: CORS allowed origins
-
-## Development
-
-### Running in Development
-```bash
-# Terminal 1 - Backend
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload
-
-# Access at http://localhost:8000
+**`backend/app/config.py`**
+```python
+DATABASE_DIR    = "databases"
+ALLOWED_ORIGINS = ["*"]          # restrict in production
 ```
 
-### Testing API
-Visit `http://localhost:8000/docs` for interactive API documentation
+**`frontend/js/config.js`** — auto-detects from `window.location`:
+```js
+API_BASE_URL = "http://<host>:<port>/api"
+WS_BASE_URL  = "ws://<host>:<port>"
+CODE_LENGTH  = 6
+```
 
-## Deployment
+---
 
-### Production Considerations
-- Use proper WSGI server (gunicorn/uvicorn)
-- Set up reverse proxy (nginx)
-- Enable HTTPS
-- Configure firewall
-- Regular database backups
-- Set proper CORS origins
+## Deployment (Production)
 
-## License
+```bash
+# Serve with gunicorn + uvicorn workers
+gunicorn app.main:app \
+  -w 4 -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
 
-MIT License
+# Reverse proxy (nginx example)
+location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";   # required for WebSocket
+}
+```
 
-## Support
-
-For issues or questions, please create an issue in the repository.
+Recommendations:
+- Enable HTTPS (required for secure WebSocket `wss://`)
+- Set `ALLOWED_ORIGINS` to your domain
+- Schedule periodic backup of `databases/` directory
+- Use `loguru` or structured logging for production observability

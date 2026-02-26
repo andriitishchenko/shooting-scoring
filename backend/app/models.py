@@ -1,13 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional, Literal, List
-from datetime import datetime
 
 
-# ── Event ──────────────────────────────────────────────────────────────────
+# ── Event (now stored as properties) ──────────────────────────────────────
 
 class EventCreate(BaseModel):
     code: str
-    shots_count: int = 30   # kept for legacy / default distance
+    shots_count: int = 30
 
 
 class EventUpdate(BaseModel):
@@ -16,11 +15,10 @@ class EventUpdate(BaseModel):
 
 
 class EventResponse(BaseModel):
-    id: int
     code: str
     shots_count: int
     status: str
-    created_at: str
+    created_at: Optional[str] = None
     started_at: Optional[str] = None
     finished_at: Optional[str] = None
 
@@ -40,11 +38,10 @@ class DistanceUpdate(BaseModel):
 
 class DistanceResponse(BaseModel):
     id: int
-    event_id: int
     title: str
     shots_count: int
     sort_order: int
-    status: str   # pending | active | finished
+    status: str
 
 
 # ── Participant ─────────────────────────────────────────────────────────────
@@ -78,15 +75,8 @@ class ResultCreate(BaseModel):
     participant_id: int
     distance_id: int
     shot_number: int
-    score: int       # 0-10
-    is_x: bool = False
-
-
-class ResultResponse(BaseModel):
-    distance_id: int
-    shot: int
     score: int
-    is_x: bool
+    is_x: bool = False
 
 
 class ShotDetail(BaseModel):
@@ -96,16 +86,14 @@ class ShotDetail(BaseModel):
 
 
 class DistanceResult(BaseModel):
-    """Per-distance result summary for client state restore"""
     distance_id: int
     title: str
     shots_count: int
-    status: str                    # pending | active | finished
-    total_score: Optional[int]     # None if no shots yet
+    status: str
+    total_score: Optional[int]
     x_count: int
-    shots: List[ShotDetail]        # empty for finished distances (summary only)
+    shots: List[ShotDetail]
 
 
 class ParticipantState(BaseModel):
-    """Full state for client to restore"""
     distances: List[DistanceResult]

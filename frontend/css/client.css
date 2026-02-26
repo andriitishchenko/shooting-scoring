@@ -15,7 +15,76 @@
     min-height: 70px;
 }
 
-/* Participant cards */
+/* ── Lane header ────────────────────────────────────────────────────────── */
+.lane-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.lane-badge {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    background: #e8f0fe;
+    color: var(--primary);
+}
+
+/* ── Lane password screens ──────────────────────────────────────────────── */
+.lane-pw-hint {
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.6;
+}
+
+/* The password display box — tappable to copy */
+.lane-pw-box {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-align: center;
+    background: #f0f9ff;
+    border: 2px solid #3182ce;
+    border-radius: 12px;
+    padding: 20px 32px;
+    color: #1a365d;
+    margin: 20px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.lane-pw-box:active {
+    transform: scale(0.98);
+    background: #dbeafe;
+}
+
+.lane-pw-copy-hint {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: var(--font-sm);
+    margin-top: -12px;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Error banner */
+.error-banner {
+    background: #fff0f0;
+    color: #c0392b;
+    border: 1px solid #e74c3c;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-sm);
+}
+.error-banner.hidden { display: none; }
+
+/* Code input uppercase */
+.code-input-uppercase { text-transform: uppercase; }
+
+/* ── Participant cards ───────────────────────────────────────────────────── */
 .participant-card {
     background: white;
     border-radius: var(--radius-lg);
@@ -54,7 +123,7 @@
     color: var(--primary);
 }
 
-/* Score input screen */
+/* ── Score input screen ─────────────────────────────────────────────────── */
 .score-input-screen {
     display: flex;
     flex-direction: column;
@@ -75,24 +144,11 @@
     z-index: 100;
 }
 
-.score-header h2 {
-    margin: 0;
-    font-size: var(--font-xl);
-}
+.score-header h2 { margin: 0; font-size: var(--font-xl); }
+.score-header #total-score { font-size: var(--font-3xl); font-weight: 700; color: var(--primary); }
+.score-header .btn { padding: var(--spacing-sm) var(--spacing-md); min-height: auto; font-size: var(--font-base); }
 
-.score-header #total-score {
-    font-size: var(--font-3xl);
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.score-header .btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    min-height: auto;
-    font-size: var(--font-base);
-}
-
-/* Score grid */
+/* ── Score grid ─────────────────────────────────────────────────────────── */
 .score-grid {
     flex: 1;
     overflow-y: auto;
@@ -131,20 +187,9 @@
     transition: all 0.2s;
 }
 
-.shot-btn:active {
-    transform: scale(0.95);
-}
-
-.shot-btn.filled {
-    border-color: var(--success);
-    background: #E8F5E9;
-    color: var(--success);
-}
-
-.shot-btn.selected {
-    border-color: var(--primary);
-    background: #E3F2FD;
-}
+.shot-btn:active { transform: scale(0.95); }
+.shot-btn.filled { border-color: var(--success); background: #E8F5E9; color: var(--success); }
+.shot-btn.selected { border-color: var(--primary); background: #E3F2FD; }
 
 .series-total {
     text-align: right;
@@ -152,22 +197,17 @@
     font-size: var(--font-base);
     color: var(--gray-700);
     padding-right: var(--spacing-sm);
+    line-height: 1.4;
 }
 
-.series-total br {
-    display: block;
-    content: "";
-    margin: 2px 0;
-}
-
-/* Score input buttons */
+/* ── Score input buttons ────────────────────────────────────────────────── */
 .score-buttons {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
     background: white;
-    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
     position: sticky;
     bottom: 0;
 }
@@ -184,113 +224,31 @@
     box-shadow: var(--shadow-sm);
 }
 
-.score-btn:active {
-    transform: scale(0.95);
-    box-shadow: none;
-}
+.score-btn:active { transform: scale(0.95); box-shadow: none; }
 
-/* Score button colors */
-.score-btn.yellow {
-    background: var(--color-yellow);
-    color: #000;
-}
+.score-btn.yellow { background: var(--color-yellow); color: #000; }
+.score-btn.red    { background: var(--color-red); color: white; }
+.score-btn.blue   { background: var(--color-blue); color: white; }
+.score-btn.black  { background: var(--color-black); color: white; }
+.score-btn.white  { background: var(--color-white); color: #000; border: 2px solid var(--gray-400); }
+.score-btn.miss   { background: var(--color-miss); color: white; }
 
-.score-btn.red {
-    background: var(--color-red);
-    color: white;
-}
+/* ── Distance summary tags ─────────────────────────────────────────────── */
+.participant-dist-summary { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
 
-.score-btn.blue {
-    background: var(--color-blue);
-    color: white;
-}
-
-.score-btn.black {
-    background: var(--color-black);
-    color: white;
-}
-
-.score-btn.white {
-    background: var(--color-white);
-    color: #000;
-    border: 2px solid var(--gray-400);
-}
-
-.score-btn.miss {
-    background: var(--color-miss);
-    color: white;
-}
-
-/* Responsive adjustments for small screens */
-@media (max-width: 480px) {
-    .score-buttons {
-        grid-template-columns: repeat(4, 1fr);
-    }
-    
-    .score-btn {
-        font-size: var(--font-xl);
-        min-height: 60px;
-        padding: var(--spacing-md);
-    }
-    
-    .series-row {
-        grid-template-columns: 30px repeat(3, 1fr) 80px;
-        gap: 4px;
-    }
-    
-    .shot-btn {
-        min-height: 50px;
-        font-size: var(--font-lg);
-    }
-}
-
-/* Multi-series support */
-.participant-series-scores {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-top: 3px;
-}
-
-.series-score-tag {
-    font-size: 0.72rem;
-    background: rgba(0,0,0,0.08);
-    border-radius: 4px;
-    padding: 1px 5px;
-    color: #555;
-    font-weight: 600;
-}
-
-.series-row-active {
-    background: rgba(46, 204, 113, 0.08);
-    border-left: 3px solid #2ecc71;
-}
-
-.series-row-inactive .shot-btn {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.shot-btn-locked {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ── Distance summary tags in participants list ── */
-.participant-dist-summary {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-top: 3px;
-}
-
-.dist-tag {
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-}
-
+.dist-tag { font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
 .dist-tag-pending  { background: #eee; color: #888; }
 .dist-tag-active   { background: #d4f4e2; color: #1a7a40; }
 .dist-tag-done     { background: #e0e8ff; color: #3366cc; }
+
+/* ── Viewer password screen ─────────────────────────────────────────────── */
+.viewer-pw-container { max-width: 480px; }
+.viewer-pw-hint { color: var(--gray-600); margin-bottom: var(--spacing-lg); }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .score-buttons { grid-template-columns: repeat(4, 1fr); }
+    .score-btn { font-size: var(--font-xl); min-height: 60px; padding: var(--spacing-md); }
+    .series-row { grid-template-columns: 30px repeat(3, 1fr) 80px; gap: 4px; }
+    .shot-btn { min-height: 50px; font-size: var(--font-lg); }
+}

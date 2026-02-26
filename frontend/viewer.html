@@ -8,36 +8,49 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/viewer.css">
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-3D4ZG2T18X');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3D4ZG2T18X"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-3D4ZG2T18X');
+    </script>
 </head>
 <body>
-    <div id="code-screen" class="screen">
-        <div class="container">
-            <h1>VIEWER</h1>
-            <input type="text" id="code-input" maxlength="8" placeholder="Enter code" style="text-transform: uppercase;">
-            <button class="btn btn-primary" onclick="viewerEnter()">Enter</button>
-            <button class="btn" onclick="location.href='index.html'">Back</button>
-        </div>
-    </div>
 
-    <div id="results-screen" class="screen hidden">
-        <button onclick="exitViewer()" style="position: fixed; top: 16px; right: 16px; z-index: 1000; padding: 12px 24px; background: rgba(0,0,0,0.5); color: white; border: 2px solid white; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">
-            ← Exit
-        </button>
-        <div class="leaderboard-container" id="leaderboard"></div>
+<!-- Code entry -->
+<div id="code-screen" class="screen">
+    <div class="container">
+        <h1>VIEWER</h1>
+        <input type="text" id="code-input" maxlength="8" placeholder="Enter event code"
+               autocomplete="off" autocapitalize="characters" class="code-input-uppercase">
+        <button class="btn btn-primary" onclick="viewerEnter()">Enter</button>
+        <button class="btn" onclick="location.href='index.html'">Back</button>
     </div>
+</div>
 
-    <script src="js/config.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/viewer.js"></script>
+<!-- Password prompt (built dynamically, no pw in HTML) -->
+<div id="viewer-pw-screen" class="screen hidden">
+    <div class="container viewer-pw-container">
+        <h1>VIEWER — Password Required</h1>
+        <p class="viewer-pw-hint">This event requires a password to view the leaderboard.</p>
+        <input type="password" id="viewer-pw-input" placeholder="Enter viewer password" autocomplete="off">
+        <div id="viewer-pw-error" class="error-banner hidden"></div>
+        <button class="btn btn-primary" onclick="submitViewerPassword()">Enter</button>
+        <button class="btn" onclick="location.href='index.html'">Back</button>
+    </div>
+</div>
+
+<!-- Leaderboard -->
+<div id="results-screen" class="screen hidden">
+    <button class="viewer-exit-btn" onclick="exitViewer()">← Exit</button>
+    <div class="leaderboard-container" id="leaderboard"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/api.js"></script>
+<script src="js/websocket.js"></script>
+<script src="js/viewer.js"></script>
 </body>
 </html>
