@@ -691,6 +691,10 @@ function closeDetailModal() {
     _detailContext = null;
 }
 
+function closeQRModal() {
+    document.getElementById('qr-modal').classList.add('hidden');
+}
+
 function _shotColorClass(score, isX) {
     if (isX || score >= 9) return 'shot-score-yellow';
     if (score >= 7)        return 'shot-score-red';
@@ -841,6 +845,17 @@ function copyLink(role) {
     } else {
         _fallbackCopy(url, done);
     }
+}
+
+function showQR(role="viewer") {
+    const modal    = document.getElementById('qr-modal');
+    const body     = document.getElementById('qr-modal-body');
+    if (body.childElementCount == 0){
+        const base = window.location.href.replace(/\/[^/]*(\?.*)?$/, '/');
+        const url  = `${base}${role}.html?code=${currentCode}`;
+        body.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?data=${url}" alt="" title="scan to open client" />`;
+    }
+    modal.classList.remove('hidden');
 }
 
 function _fallbackCopy(text, done) {

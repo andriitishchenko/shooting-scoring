@@ -44,6 +44,7 @@
                     <span id="event-code-display" class="event-meta-badge clickable-badge" title="Tap to copy code">—</span>
                     <span id="event-password-display" class="event-meta-badge event-pw-badge clickable-badge" title="Tap to copy password"></span>
                     <button class="btn-copy-link" id="btn-copy-client"  onclick="copyLink('client')">📋 Client</button>
+                    <button class="btn-copy-link" id="btn-qr-client"  onclick="showQR('client')">QR</button>
                     <button class="btn-copy-link" id="btn-copy-viewer"  onclick="copyLink('viewer')">📋 Viewer</button>
                     <button class="btn-icon" id="btn-settings" onclick="openSettingsModal()" title="Event Settings">⚙️</button>
                 </div>
@@ -191,6 +192,22 @@
                 <button class="modal-close" onclick="closeDetailModal()">×</button>
             </div>
             <div id="detail-modal-body" class="detail-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- QR MODAL -->
+    <div id="qr-modal" class="modal hidden" onclick="if(event.target===this)closeQRModal()">
+        <div class="modal-content detail-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 id="qr-modal-title">Scan to open client</h2>
+                    <div id="qr-modal-subtitle" class="detail-subtitle"></div>
+                </div>
+                <button class="modal-close" onclick="closeQRModal()">×</button>
+            </div>
+            <div id="qr-modal-body" class="detail-modal-body">
+                
+            </div>
         </div>
     </div>
 
