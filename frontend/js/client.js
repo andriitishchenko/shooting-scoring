@@ -339,7 +339,10 @@ async function _refreshAllParticipantStates() {
 
 function _mergePendingResults(participantId, serverState) {
     const state = JSON.parse(JSON.stringify(serverState));
+    const sessionId = Storage.getLaneSession(currentLane);
+    if (!sessionId) return state;
     for (const pending of Storage.getPendingResults(currentCode, currentLane)) {
+        if (pending.session_id !== sessionId) continue;
         if (pending.participant_id !== participantId) continue;
         const distance = state.distances.find(d => d.distance_id === pending.distance_id);
         if (!distance) continue;
@@ -359,7 +362,9 @@ async function _syncPendingResults() {
     const code = currentCode;
     const lane = currentLane;
     const sessionId = Storage.getLaneSession(lane);
+    if (!sessionId) return;
     for (const pending of Storage.getPendingResults(code, lane)) {
+        if (pending.session_id !== sessionId) continue;
         try {
             await _queueResultReplacement(
                 code, pending.participant_id, pending.distance_id, lane, sessionId,
@@ -697,7 +702,7 @@ async function _saveCurrentResults() {
     const lane = currentLane;
     const sessionId = Storage.getLaneSession(lane);
     const snapshot = _mapForApi().map(({shot_number, score, is_x}) => ({shot_number, score, is_x}));
-    Storage.savePendingResults(code, participantId, distanceId, lane, snapshot);
+    Storage.savePendingResults(code, participantId, distanceId, lane, sessionId, snapshot);
     const status = document.getElementById('save-status');
     if (status && currentParticipant?.id === participantId) status.textContent = 'Saving…';
 
@@ -735,6 +740,9 @@ async function _queueResultReplacement(code, participantId, distanceId, lane, se
     const task = previous.catch(() => {}).then(async () => {
         const pending = Storage.getPendingResult(code, participantId, distanceId);
         if (onlyIfPending && !pending) return { sent: false, cleared: false };
+        if (pending && (!sessionId || pending.session_id !== sessionId)) {
+            return { sent: false, cleared: false };
+        }
         const latestShots = pending?.shots ?? fallbackShots;
         await api.replaceDistanceResults(
             code, participantId, distanceId, latestShots, sessionId
@@ -833,6 +841,10 @@ function handleDistanceUpdate(data) {
 function handleLaneSessionReset(data) {
     if (data.lane_number !== currentLane) return;
     alert('Your lane session has been reset by the admin. You will be redirected to lane selection.');
+    if (wsClient) {
+        wsClient.disconnect();
+        wsClient = null;
+    }
     Storage.clearLaneSession(currentLane);
     Storage.clearLane();
     currentLane = null;

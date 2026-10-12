@@ -11,7 +11,11 @@ function createClientContext() {
     const context = vm.createContext({
         window: { addEventListener() {} },
         document: { getElementById: () => scoreScreen },
-        Storage: { getParticipantState: () => ({ distances: [] }) },
+        Storage: {
+            getParticipantState: () => ({ distances: [] }),
+            getLaneSession: () => 'lane-token',
+            getPendingResults: () => [],
+        },
         record: { renders: 0, saved: 0, screens: [], openedParticipant: null, alerts: [] },
         console: { warn() {} },
         alert: message => context.record.alerts.push(message),
@@ -82,8 +86,11 @@ test('pending sync is serialized with newer edits so stale shots cannot win', as
     const firstRequestHold = new Promise(resolve => { releaseFirstRequest = resolve; });
     const sentSnapshots = [];
     const storage = {
-        savePendingResults(code, participantId, distanceId, lane, shots) {
-            pending = { code, participant_id: participantId, distance_id: distanceId, lane_number: lane, shots };
+        savePendingResults(code, participantId, distanceId, lane, sessionId, shots) {
+            pending = {
+                code, participant_id: participantId, distance_id: distanceId,
+                lane_number: lane, session_id: sessionId, shots
+            };
         },
         getPendingResults(code, lane) {
             return pending && pending.code === code && pending.lane_number === lane ? [pending] : [];
@@ -112,7 +119,7 @@ test('pending sync is serialized with newer edits so stale shots cannot win', as
         currentDistanceId = 7;
         results = [{ participant_id: 4, distance_id: 7, shot: 1, score: 9, is_x: false }];
     `, context);
-    storage.savePendingResults('EVENT', 4, 7, 1, [{ shot_number: 1, score: 9, is_x: false }]);
+    storage.savePendingResults('EVENT', 4, 7, 1, 'lane-token', [{ shot_number: 1, score: 9, is_x: false }]);
 
     const sync = vm.runInContext('_syncPendingResults()', context);
     await new Promise(resolve => setImmediate(resolve));
@@ -129,7 +136,8 @@ test('pending sync is serialized with newer edits so stale shots cannot win', as
 test('an offline-cleared series remains unscored instead of displaying zero', () => {
     const context = createClientContext();
     context.Storage = {
-        getPendingResults: () => [{ participant_id: 4, distance_id: 7, shots: [] }],
+        getLaneSession: () => 'lane-token',
+        getPendingResults: () => [{ participant_id: 4, distance_id: 7, session_id: 'lane-token', shots: [] }],
     };
     vm.runInContext(`currentCode = 'EVENT'; currentLane = 1;`, context);
 
@@ -142,4 +150,53 @@ test('an offline-cleared series remains unscored instead of displaying zero', ()
 
     assert.equal(state.distances[0].total_score, null);
     assert.deepEqual(JSON.parse(JSON.stringify(state.distances[0].shots)), []);
+});
+
+test('pending results from an earlier lane session are not merged or replayed', async () => {
+    const context = createClientContext();
+    const oldPending = {
+        code: 'EVENT', participant_id: 4, distance_id: 7, lane_number: 1,
+        session_id: 'old-token', shots: [{ shot_number: 1, score: 2, is_x: false }],
+    };
+    const legacyPending = {
+        code: 'EVENT', participant_id: 4, distance_id: 8, lane_number: 1,
+        shots: [{ shot_number: 1, score: 3, is_x: false }],
+    };
+    let replaceCalls = 0;
+    context.Storage = {
+        getLaneSession: () => 'new-token',
+        getPendingResults: () => [oldPending, legacyPending],
+        getPendingResult: () => oldPending,
+        clearPendingResults() { throw new Error('stale pending result must not be cleared'); },
+    };
+    context.api = {
+        async replaceDistanceResults() { replaceCalls++; },
+    };
+    vm.runInContext(`
+        eventData = { status: 'started' };
+        currentCode = 'EVENT';
+        currentLane = 1;
+    `, context);
+
+    await vm.runInContext('_syncPendingResults()', context);
+    const replacement = await vm.runInContext(
+        `_queueResultReplacement('EVENT', 4, 7, 1, 'new-token', [], true)`,
+        context
+    );
+    const state = vm.runInContext(`_mergePendingResults(4, {
+        distances: [{
+            distance_id: 7, total_score: 8, x_count: 0,
+            shots: [{ shot: 1, score: 8, is_x: false }]
+        }, {
+            distance_id: 8, total_score: 7, x_count: 0,
+            shots: [{ shot: 1, score: 7, is_x: false }]
+        }]
+    })`, context);
+
+    assert.equal(replaceCalls, 0);
+    assert.equal(replacement.sent, false);
+    assert.equal(replacement.cleared, false);
+    assert.equal(state.distances[0].total_score, 8);
+    assert.equal(state.distances[0].shots[0].score, 8);
+    assert.equal(state.distances[1].total_score, 7);
 });

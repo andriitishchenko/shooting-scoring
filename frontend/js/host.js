@@ -9,6 +9,7 @@ let allParticipants    = [];
 let allResults         = {};
 // detail modal context (stored in closure, not DOM)
 let _detailContext = null;
+let _detailSaving = false;
 
 // ============================================================
 // INIT
@@ -575,7 +576,7 @@ function renderResults(grouped) {
         container.innerHTML = `<div class="empty-state-box"><p>No results found</p><p>Try changing the filters or wait for scores</p></div>`;
         return;
     }
-    const distOrder = currentDistances.map(d => ({ id: d.id, title: d.title }));
+    const distOrder = currentDistances.map(d => ({ id: d.id, title: d.title, status: d.status }));
     let html = '';
 
     for (const [groupKey, entries] of Object.entries(grouped)) {
@@ -598,8 +599,12 @@ function renderResults(grouped) {
                 ${sorted.map((entry, i) => {
                     const distCells = distOrder.map(d => {
                         const ds = (entry.distance_scores || []).find(s => s.distance_id === d.id);
-                        if (ds && ds.score !== null) {
-                            return `<td><span class="dist-score-link" data-pid="${entry.id}" data-did="${d.id}" data-name="${escHtml(entry.name)}">${ds.score}</span></td>`;
+                        const hasScore = ds && ds.score !== null;
+                        const canEdit = ['started', 'finished'].includes(currentEventData?.status)
+                            && ['active', 'finished'].includes(d.status);
+                        if (hasScore || canEdit) {
+                            const emptyClass = hasScore ? '' : ' score-empty';
+                            return `<td><span class="dist-score-link${emptyClass}" data-pid="${entry.id}" data-did="${d.id}" data-name="${escHtml(entry.name)}">${hasScore ? ds.score : '—'}</span></td>`;
                         }
                         return '<td class="score-empty">—</td>';
                     }).join('');
@@ -696,33 +701,39 @@ function closeDetailModal() {
 }
 
 async function editDetailShot(shotNumber) {
-    if (!_detailContext) return;
-    const previous = _detailContext.shots.find(shot => shot.shot_number === shotNumber);
-    const initial = previous ? (previous.is_x ? 'X' : String(previous.score)) : '';
-    const entered = window.prompt(`Correct shot ${shotNumber}. Enter 0–10 or X; leave blank to clear.`, initial);
-    if (entered === null) return;
+    if (!_detailContext || _detailSaving) return;
+    _detailSaving = true;
+    try {
+        const detailContext = _detailContext;
+        const previous = detailContext.shots.find(shot => shot.shot_number === shotNumber);
+        const initial = previous ? (previous.is_x ? 'X' : String(previous.score)) : '';
+        const entered = window.prompt(`Correct shot ${shotNumber}. Enter 0–10 or X; leave blank to clear.`, initial);
+        if (entered === null) return;
 
-    const value = entered.trim().toUpperCase();
-    const shots = _detailContext.shots.filter(shot => shot.shot_number !== shotNumber);
-    if (value) {
-        if (value !== 'X' && !/^(10|[0-9])$/.test(value)) {
-            alert('Enter a score from 0 to 10, X, or leave the field blank to clear this shot.');
+        const value = entered.trim().toUpperCase();
+        const shots = detailContext.shots.filter(shot => shot.shot_number !== shotNumber);
+        if (value) {
+            if (value !== 'X' && !/^(10|[0-9])$/.test(value)) {
+                alert('Enter a score from 0 to 10, X, or leave the field blank to clear this shot.');
+                return;
+            }
+            shots.push({shot_number: shotNumber, score: value === 'X' ? 10 : Number(value), is_x: value === 'X'});
+        } else if (!previous) {
             return;
         }
-        shots.push({shot_number: shotNumber, score: value === 'X' ? 10 : Number(value), is_x: value === 'X'});
-    } else if (!previous) {
-        return;
-    }
-    shots.sort((a, b) => a.shot_number - b.shot_number);
+        shots.sort((a, b) => a.shot_number - b.shot_number);
 
-    const {participantId, distanceId} = _detailContext;
-    try {
+        const {participantId, distanceId} = detailContext;
         await api.replaceDistanceResults(currentCode, participantId, distanceId, shots, Storage.getHostSession());
         const participantName = document.getElementById('detail-modal-title').textContent;
         await Promise.all([loadParticipants(), loadResults()]);
-        await openDetailModal(participantId, distanceId, participantName);
+        if (_detailContext?.participantId === participantId && _detailContext?.distanceId === distanceId) {
+            await openDetailModal(participantId, distanceId, participantName);
+        }
     } catch (err) {
         alert(`Could not update shot: ${err.message}`);
+    } finally {
+        _detailSaving = false;
     }
 }
 

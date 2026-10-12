@@ -54,8 +54,11 @@ class Storage {
     static saveParticipantState(pid, state) { this.set(`pstate_${pid}`, state); }
     static getParticipantState(pid)         { return this.get(`pstate_${pid}`); }
     static _pendingResultKey(code, pid, did) { return `pending_results_${code}_${pid}_${did}`; }
-    static savePendingResults(code, pid, did, lane, shots) {
-        this.set(this._pendingResultKey(code, pid, did), { code, participant_id: pid, distance_id: did, lane_number: lane, shots });
+    static savePendingResults(code, pid, did, lane, sessionId, shots) {
+        this.set(this._pendingResultKey(code, pid, did), {
+            code, participant_id: pid, distance_id: did, lane_number: lane,
+            session_id: sessionId, shots
+        });
     }
     static getPendingResults(code, lane) {
         try {

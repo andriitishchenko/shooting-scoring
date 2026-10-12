@@ -93,6 +93,12 @@ def test_host_endpoints_require_a_valid_session(client, event):
     assert client.get(f"/api/sessions/{code}/lanes").status_code == 401
 
 
+def test_empty_result_batch_is_rejected(client, event):
+    response = client.post(f"/api/results/{event['code']}", json=[])
+    assert response.status_code == 422
+    assert response.json()["detail"] == "At least one result is required"
+
+
 def test_lane_cannot_write_for_another_lane_or_bypass_auth_with_a_missing_id(client, event):
     start_distance(client, event)
     code, distance_id = event["code"], event["distance"]

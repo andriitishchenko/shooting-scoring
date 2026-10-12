@@ -210,7 +210,7 @@ async def save_results(
         raise HTTPException(status_code=404, detail="Event not found")
 
     if not results:
-        return {"message": "Results saved", "count": 0}
+        raise HTTPException(status_code=422, detail="At least one result is required")
 
     if len({(r.participant_id, r.distance_id) for r in results}) != 1:
         raise HTTPException(status_code=422, detail="A save request may only contain one participant and distance")
