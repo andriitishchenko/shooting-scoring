@@ -10,7 +10,8 @@ event via a shared code.
 ## Features
 
 - **Session-based auth** — host, viewer and each lane have independent
-  sessions stored in `localStorage`; no passwords appear in HTML or URLs
+  sessions stored in `localStorage`; credentials are not embedded in static
+  page source or URLs
 - **Single-event databases** — one SQLite file per event code; new databases
   use the current schema, and existing databases gain the notification table
   automatically when opened
@@ -71,14 +72,17 @@ shooting-scoring/
 │   └── requirements.txt
 └── frontend/
     ├── index.html                # Landing page (role selection)
-    ├── host.html / host.js       # Host admin panel
-    ├── client.html / client.js   # Lane scoring interface
-    ├── viewer.html / viewer.js   # Live leaderboard display
+    ├── host.html                 # Host admin panel
+    ├── client.html               # Lane scoring interface
+    ├── viewer.html               # Live leaderboard display
     ├── js/
     │   ├── config.js             # API_BASE_URL, WS_BASE_URL (auto-detected)
     │   ├── storage.js            # localStorage helpers (sessions, codes)
     │   ├── api.js                # REST client (APIClient class)
-    │   └── websocket.js          # WSClient class
+    │   ├── websocket.js          # WSClient class
+    │   ├── host.js               # Host UI and result corrections
+    │   ├── client.js             # Lane scoring and offline recovery
+    │   └── viewer.js             # Leaderboard UI
     ├── css/
         ├── reset.css
         ├── variables.css         # Design tokens
@@ -87,7 +91,8 @@ shooting-scoring/
         ├── client.css
         └── viewer.css
     └── tests/
-        └── client.test.js         # Client score queue regression tests
+        ├── client.test.js        # Client reconnect and offline score tests
+        └── host.test.js          # Host result editing regression tests
 ```
 
 ---
@@ -168,7 +173,7 @@ system.
 | `GET` | `/api/results/{code}/leaderboard` | — | Grouped ranked leaderboard |
 | `GET` | `/api/results/{code}/state/{pid}` | — | Participant state for restore; shot details are omitted for finished distances |
 | `GET` | `/api/results/{code}/detail/{pid}/{did}` | — | Series detail for host popup |
-| `POST` | `/api/results/{code}` | Lane client or Host | Save shots |
+| `POST` | `/api/results/{code}` | Lane client or Host | Save a non-empty shot batch; an empty batch returns `422` |
 | `PUT` | `/api/results/{code}/participant/{pid}/distance/{did}` | Participant's lane or Host | Replace `{ "shots": [...] }`; `{ "shots": [] }` clears the series |
 | `DELETE` | `/api/results/{code}/{pid}` | Host | Clear participant results |
 
@@ -191,10 +196,12 @@ client messages cannot publish updates. Notifications are stored per event so
 connections on separate server workers receive the same updates.
 
 Lane clients keep pending score changes in browser storage and retry the full
-distance score set when the event is started and the server is reachable. A
-successful replacement removes the pending local copy. A finished event
-rejects client score changes; the host can still correct a distance through
-the results detail view.
+distance score set when the event is started and the server is reachable. Each
+pending set is tied to the lane session that created it; data left by an older
+session is not merged into or sent by a new session. A successful replacement
+removes the pending local copy. A finished event rejects client score changes;
+the host can still correct scores through the results detail view. Empty cells
+for active or finished distances can be opened to add a missed result.
 
 | `type` | Direction | Payload |
 |--------|-----------|---------|
@@ -269,19 +276,29 @@ CODE_LENGTH  = 6
 The browser interface requires a six-character event code by default. The API
 accepts uppercase letters and digits from 1 to 16 characters.
 
+`DATABASE_DIR` and `ALLOWED_ORIGINS` can be set as environment variables or in
+a `.env` file in the server's working directory. For a public deployment, set
+CORS to the exact origin serving the browser application. `ALLOWED_ORIGINS` is
+a JSON array:
+
+```bash
+export ALLOWED_ORIGINS='["https://scores.example.org"]'
+export DATABASE_DIR='/srv/shooting-scoring/databases'
+```
+
 ---
 
 ## Tests
 
 Run the backend API regression tests from `backend/` with the project's Python
-dependencies installed, then run the frontend score-queue tests from the
+dependencies installed, then run all frontend regression tests from the
 repository root:
 
 ```bash
 cd backend
-python -m pytest -q tests/test_backend.py
+python -m pytest -q tests
 cd ..
-node --test frontend/tests/client.test.js
+node --test frontend/tests/*.test.js
 ```
 
 ---
@@ -289,22 +306,43 @@ node --test frontend/tests/client.test.js
 ## Deployment (Production)
 
 ```bash
-# Run the API without the development auto-reloader
+# Run from backend/ without the development auto-reloader.
+# Use a process manager or service unit to keep the server running.
 cd backend
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Nginx reverse proxy example:
+Nginx reverse proxy example (replace the certificate paths with your TLS
+certificate paths):
 
 ```nginx
-location / {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";   # required for WebSocket
+server {
+    listen 80;
+    server_name scores.example.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name scores.example.org;
+    ssl_certificate     /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+    }
 }
 ```
 
 Recommendations:
 - Enable HTTPS (required for secure WebSocket `wss://`)
-- Set `ALLOWED_ORIGINS` to your domain
-- Schedule periodic backup of `databases/` directory
+- Set `ALLOWED_ORIGINS` to the exact application origin
+- Keep `DATABASE_DIR` on persistent storage and restrict access to database files
+- Back up event databases regularly; use SQLite's online backup while the server is running
+- Audit pinned and resolved Python dependencies for known security issues; retest after dependency updates
+- Smoke-test the deployed server, including WebSocket connection and score entry

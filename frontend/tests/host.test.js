@@ -47,6 +47,29 @@ test('host can open an empty cell for a distance that has started', () => {
     assert.match(resultsContainer.innerHTML, /<td class="score-empty">—<\/td>/);
 });
 
+test('host results include unscored participants so a first missed result can be entered', async () => {
+    const { context, resultsContainer } = createHostContext();
+    context.api = {
+        async getLeaderboard() { return {}; },
+        async getParticipants() {
+            return [{
+                id: 9, name: 'No score yet', lane_number: 3, shift: 'B',
+                gender: 'female', shooting_type: 'recurve',
+            }];
+        },
+    };
+    vm.runInContext(`
+        currentCode = 'EVENT';
+        currentEventData = { status: 'started' };
+        currentDistances = [{ id: 10, title: 'Active distance', status: 'active', shots_count: 3 }];
+    `, context);
+
+    await vm.runInContext('loadResults()', context);
+
+    assert.match(resultsContainer.innerHTML, /No score yet/);
+    assert.match(resultsContainer.innerHTML, /class="dist-score-link score-empty" data-pid="9" data-did="10"[^>]*>—<\/span>/);
+});
+
 test('host serializes full-series edits while a replacement request is in flight', async () => {
     const { context } = createHostContext();
     let releaseRequest;

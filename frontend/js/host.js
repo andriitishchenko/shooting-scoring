@@ -549,12 +549,56 @@ async function saveSettings() {
 // ============================================================
 async function loadResults() {
     try {
-        allResults = await api.getLeaderboard(currentCode);
+        const [leaderboard, participants] = await Promise.all([
+            api.getLeaderboard(currentCode),
+            api.getParticipants(currentCode),
+        ]);
+        allParticipants = participants;
+        allResults = ['started', 'finished'].includes(currentEventData?.status)
+            ? _includeUnscoredParticipants(leaderboard, participants)
+            : leaderboard;
         filterResults();
     } catch (err) {
         document.getElementById('results-container').innerHTML =
             '<p class="empty-text">Error loading results</p>';
     }
+}
+
+function _includeUnscoredParticipants(grouped, participants) {
+    const results = Object.fromEntries(
+        Object.entries(grouped || {}).map(([key, entries]) => [key, [...entries]])
+    );
+    const scoredIds = new Set(Object.values(results).flat().map(entry => entry.id));
+
+    for (const participant of participants) {
+        if (scoredIds.has(participant.id)) continue;
+
+        const gender = participant.gender || 'unknown';
+        const shootingType = participant.shooting_type || 'unknown';
+        const key = `${gender}_${shootingType}`;
+        const distanceScores = currentDistances.map(distance => ({
+            distance_id: distance.id,
+            title: distance.title,
+            score: null,
+            shots_count: distance.shots_count,
+            shots_taken: 0,
+        }));
+        (results[key] ||= []).push({
+            id: participant.id,
+            name: participant.name,
+            lane_shift: `${participant.lane_number}${participant.shift}`,
+            gender,
+            shooting_type: shootingType,
+            group_type: participant.group_type || 'unknown',
+            age_category: participant.age_category || 'unknown',
+            total_score: 0,
+            x_count: 0,
+            ten_count: 0,
+            avg_score: 0,
+            distance_scores: distanceScores,
+        });
+    }
+    return results;
 }
 
 function filterResults() {

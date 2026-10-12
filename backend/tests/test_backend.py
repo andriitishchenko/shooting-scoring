@@ -168,6 +168,37 @@ def test_replacing_shots_persists_deletions_and_allows_clearing_the_series(clien
     assert state["shots"] == []
 
 
+def test_lane_replacement_is_limited_to_its_participant_and_started_distances(client, event):
+    code = event["code"]
+    pending = client.post(
+        f"/api/distances/{code}",
+        headers=event["host"],
+        json={"title": "Later distance", "shots_count": 3},
+    )
+    assert pending.status_code == 200
+    pending_distance_id = pending.json()["id"]
+    start_distance(client, event)
+
+    lane_one = event["lanes"][1]
+    own_participant, other_participant = event["participants"]
+    other_lane_response = client.put(
+        f"/api/results/{code}/participant/{other_participant}/distance/{event['distance']}",
+        headers=lane_one,
+        json={"shots": [{"shot_number": 1, "score": 9}]},
+    )
+    pending_distance_response = client.put(
+        f"/api/results/{code}/participant/{own_participant}/distance/{pending_distance_id}",
+        headers=lane_one,
+        json={"shots": [{"shot_number": 1, "score": 9}]},
+    )
+
+    assert other_lane_response.status_code == 401
+    assert pending_distance_response.status_code == 403
+    for participant_id in (own_participant, other_participant):
+        state = client.get(f"/api/results/{code}/state/{participant_id}").json()
+        assert all(distance["total_score"] is None for distance in state["distances"])
+
+
 def test_leaderboard_returns_scored_participants(client, event):
     start_distance(client, event)
     code, pid, did = event["code"], event["participants"][0], event["distance"]
@@ -209,6 +240,32 @@ def test_admin_can_correct_scores_in_detail_api_after_event_finishes(client, eve
     assert client.patch(
         f"/api/events/{code}", headers=event["host"], json={"status": "started"}
     ).status_code == 403
+
+
+def test_host_can_post_a_missed_result_after_event_finishes(client, event):
+    start_distance(client, event)
+    code, participant_id, distance_id = (
+        event["code"], event["participants"][0], event["distance"]
+    )
+    assert client.patch(
+        f"/api/events/{code}", headers=event["host"], json={"status": "finished"}
+    ).status_code == 200
+
+    host_response = client.post(
+        f"/api/results/{code}",
+        headers=event["host"],
+        json=[score(participant_id, distance_id, 1, 8)],
+    )
+    lane_response = client.post(
+        f"/api/results/{code}",
+        headers=event["lanes"][1],
+        json=[score(participant_id, distance_id, 2, 7)],
+    )
+
+    assert host_response.status_code == 200
+    assert lane_response.status_code == 403
+    state = client.get(f"/api/results/{code}/state/{participant_id}").json()
+    assert state["distances"][0]["total_score"] == 8
 
 
 def test_participants_cannot_be_changed_after_event_starts(client, event):
@@ -283,6 +340,49 @@ def test_websocket_authentication_and_server_owned_notifications(client, event):
         )
         assert response.status_code == 200
         assert socket.receive_json() == {"type": "event_status", "status": "started"}
+
+
+def test_result_mutations_broadcast_current_participant_total(client, event):
+    start_distance(client, event)
+    code, participant_id, distance_id = (
+        event["code"], event["participants"][0], event["distance"]
+    )
+    endpoint = f"/api/results/{code}/participant/{participant_id}/distance/{distance_id}"
+
+    with client.websocket_connect(f"/ws/{code}") as socket:
+        socket.send_json({
+            "type": "authenticate",
+            "session_id": event["host"]["X-Session-Id"],
+        })
+        assert socket.receive_json() == {"type": "authenticated", "role": "host"}
+
+        saved = client.post(
+            f"/api/results/{code}",
+            headers=event["lanes"][1],
+            json=[score(participant_id, distance_id, 1, 10)],
+        )
+        assert saved.status_code == 200
+        assert socket.receive_json() == {
+            "type": "result_update", "participant_id": participant_id, "total_score": 10
+        }
+
+        replaced = client.put(
+            endpoint,
+            headers=event["host"],
+            json={"shots": [{"shot_number": 1, "score": 9}]},
+        )
+        assert replaced.status_code == 200
+        assert socket.receive_json() == {
+            "type": "result_update", "participant_id": participant_id, "total_score": 9
+        }
+
+        deleted = client.delete(
+            f"/api/results/{code}/{participant_id}", headers=event["host"]
+        )
+        assert deleted.status_code == 200
+        assert socket.receive_json() == {
+            "type": "result_update", "participant_id": participant_id, "total_score": 0
+        }
 
 
 def test_notifications_reach_connections_on_separate_workers(event):

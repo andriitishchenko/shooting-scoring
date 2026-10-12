@@ -41,7 +41,7 @@ All three interfaces auto-detect the backend URL from `window.location` — no c
 
 Open `host.html` in a browser, or choose **Host** from the root page. The host screen has two fields: **Event Code** and **Password**.
 
-- **First time** — enter a new six-character code using uppercase letters or digits and click **Create**. A fresh event database is created. The system generates a random admin password shown as a clickable badge in the header — **copy it immediately** and store it safely; it is not shown again. The backend API accepts codes from 1 to 16 characters, but the browser interface uses six characters by default (`CODE_LENGTH` in `frontend/js/config.js`).
+- **First time** — enter a new six-character code using uppercase letters or digits and click **Create**. A fresh event database is created. The system generates an eight-character host password shown as a clickable badge in the header. Copy it and store it safely outside the browser. The password is saved in this browser's local storage and the badge remains visible while that local copy exists; clearing browser storage removes the local copy. The backend API accepts codes from 1 to 16 characters, but the browser interface uses six characters by default (`CODE_LENGTH` in `frontend/js/config.js`).
 - Before creating, the page checks whether the code already exists. A `404 Event not found` for a new code is expected and opens the create confirmation. If you expect an existing event, check the code and that the page is connected to the server holding its database.
 - **Returning** — the page auto-logs in using the saved session in browser storage. If storage was cleared, enter the code and password manually.
 
@@ -88,11 +88,11 @@ Distances define the shooting stages of the event. At least one distance always 
 
 #### Results Tab
 
-Shows a ranked table grouped by gender + bow type. Columns: Rank, Name, Lane, per-distance scores, Total, Avg, X-count, 10-count. Clicking a per-distance score cell opens a **detail popup** showing the full series breakdown. The host can correct an existing score, enter a missed shot, or clear a shot from this popup, including after the competition has finished.
+Shows a ranked table grouped by gender + bow type. Columns: Rank, Name, Lane, per-distance scores, Total, Avg, X-count, 10-count. During a started or finished event, the host table also includes participants who have no saved scores yet. Clicking a per-distance score cell opens a **detail popup** showing the full series breakdown. Empty cells for active or finished distances are clickable, so the host can enter a missed result. The host can correct or clear a shot from this popup, including after the competition has finished. The UI serializes full-series replacements so two rapid corrections cannot submit competing snapshots.
 
 #### Distances / Status Controls
 
-- **▶ Start Event** — transitions status from `created` to `started`. Clients can now activate distances and enter scores.
+- **▶ Start** — transitions status from `created` to `started`. Clients can now activate distances and enter scores.
 - **⏹ Finish Event** — transitions to `finished`. All active distances are auto-finished. Lane clients can no longer change scores; the host can still correct them from the results detail popup. The event cannot be restarted.
 
 ### 2.4 Settings Modal
@@ -141,7 +141,7 @@ Shows a grid of shot slots organised in series of 3.
 - Tap a **filled slot** to re-select it, then tap a different score button to correct it.
 - **X** counts as 10 points with the X flag set.
 - **M** counts as 0 (miss).
-- Each score change is saved in the browser and sent to the server as a replacement of the full distance score set. If the connection drops, pending scores remain on that device and retry when the connection returns while the event is started.
+- Each score change is saved in the browser and sent to the server as a replacement of the full distance score set. If the connection drops, pending scores remain on that device and retry when the connection returns while the event is started. Pending sets are tied to the lane session that recorded them; a new session ignores unsent data from an older session.
 - When the host finishes the last active distance, the screen returns to the participants list. Finishing the event also displays an alert. Pending unsent scores remain on the device for recovery; lane clients cannot submit them after the event is finished.
 
 ---
@@ -214,16 +214,20 @@ shooting-scoring/
 │   └── requirements.txt
 └── frontend/
     ├── index.html                # Role selection landing page
-    ├── host.html / host.js       # Host admin panel
-    ├── client.html / client.js   # Lane scoring interface
-    ├── viewer.html / viewer.js   # Leaderboard display
+    ├── host.html                 # Host admin panel
+    ├── client.html               # Lane scoring interface
+    ├── viewer.html               # Leaderboard display
     ├── js/
         ├── config.js             # Auto-detects API_BASE_URL and WS_BASE_URL
         ├── storage.js            # localStorage helpers (never exposes tokens in DOM)
         ├── api.js                # APIClient class (all REST calls)
-        └── websocket.js          # Authenticated WSClient class
+        ├── websocket.js          # Authenticated WSClient class
+        ├── host.js               # Host UI and result corrections
+        ├── client.js             # Lane scoring and offline recovery
+        └── viewer.js             # Leaderboard UI
     └── tests/
-        └── client.test.js        # Score recovery regression tests
+        ├── client.test.js        # Reconnect and offline score regression tests
+        └── host.test.js          # Host result editing regression tests
 ```
 
 ### Request Flow
@@ -406,7 +410,7 @@ Bulk import response: `{ added: N, failed: N, errors: ["Row 3: ..."] }`
 | GET | `/results/{code}/leaderboard` | — | Grouped leaderboard (participants with scores only) |
 | GET | `/results/{code}/state/{pid}` | — | Per-distance state for client restore; shot details are omitted for finished distances |
 | GET | `/results/{code}/detail/{pid}/{did}` | — | Read-only series detail used by the host editor |
-| POST | `/results/{code}` | Participant's lane or Host | Upsert shots `[{ participant_id, distance_id, shot_number, score, is_x }]` during a started event; the host can also submit after it finishes |
+| POST | `/results/{code}` | Participant's lane or Host | Save a non-empty batch of shots `[{ participant_id, distance_id, shot_number, score, is_x }]` during a started event; the host can also submit after it finishes. Empty batches return `422`. |
 | PUT | `/results/{code}/participant/{pid}/distance/{did}` | Participant's lane or Host | Replace the full set with `{"shots": [...]}`; `{"shots": []}` clears the series. Host can edit after event finish. |
 | DELETE | `/results/{code}/{pid}` | Host | Clear all results for a participant |
 
@@ -443,7 +447,7 @@ See §5 for message types.
 
 ### Password Storage
 
-Host and viewer passwords are stored in plaintext in the `properties` table; lane passwords are stored in plaintext in `sessions`. Protect the event database files accordingly.
+Host and viewer passwords are stored in plaintext in the `properties` table; lane passwords are stored in plaintext in `sessions`. Protect the event database files accordingly. During first lane login, the lane password is displayed in the client page and temporarily placed in a runtime `data-pw` attribute to support the copy action.
 
 ### Input Validation
 
@@ -502,12 +506,21 @@ cd backend
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**Nginx reverse proxy** (required for WebSocket upgrade):
+**Nginx reverse proxy** (replace the certificate paths with your TLS
+certificate paths):
 
 ```nginx
 server {
     listen 80;
-    server_name your.domain.com;
+    server_name scores.example.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name scores.example.org;
+    ssl_certificate     /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
 
     location / {
         proxy_pass         http://127.0.0.1:8000;
@@ -530,6 +543,13 @@ server {
 | `ALLOWED_ORIGINS` | `["*"]` | CORS allowed origins — restrict in production |
 
 Settings can also be read from a `.env` file in the process working directory.
+For a public deployment, restrict CORS to the exact origin serving the browser
+application. `ALLOWED_ORIGINS` is a JSON array, for example:
+
+```bash
+export ALLOWED_ORIGINS='["https://scores.example.org"]'
+export DATABASE_DIR='/srv/shooting-scoring/databases'
+```
 
 **`frontend/js/config.js`** auto-derives URLs from `window.location`. No manual configuration needed. `CODE_LENGTH` defaults to 6.
 
@@ -538,12 +558,20 @@ Settings can also be read from a `.env` file in the process working directory.
 ### Database Backup
 
 ```bash
-# Simple: copy the databases directory
-cp -r databases/ backup/databases_$(date +%Y%m%d)/
-
-# Or use SQLite's online backup tool
-sqlite3 databases/event_MYCODE.db ".backup backup/event_MYCODE_$(date +%Y%m%d).db"
+# Create a consistent online backup of one event while the server is running.
+mkdir -p /path/to/backup
+sqlite3 databases/event_MYCODE.db \
+  ".backup '/path/to/backup/event_MYCODE.db'"
 ```
+
+Stop the server before making a raw copy of the database directory or restoring
+a database file. Existing databases gain the `event_notifications` table
+automatically, but there is no general schema migration system; back up data
+before upgrading the application.
+
+Before public deployment, audit the pinned and resolved Python dependencies for
+known security issues. Test compatible dependency updates in a clean environment
+and rerun both automated suites before deploying them.
 
 ---
 
@@ -592,19 +620,19 @@ Rank,Name,Lane,Shift,Gender,BowType,Group,AgeCategory,PersonalNo,[Distance cols.
 
 ## 11. Regression Tests
 
-Run the API and score recovery tests from the repository root. Install the
-Python dependencies from `backend/requirements.txt` in the Python environment
-used for development before running pytest. The frontend tests use Node's
-built-in test runner.
+Run the API and frontend regression tests. Install the Python dependencies from
+`backend/requirements.txt` in the Python environment used for development
+before running pytest. The frontend tests use Node's built-in test runner.
 
 ```bash
 cd backend
-python -m pytest -q tests/test_backend.py
+python -m pytest -q tests
 cd ..
-node --test frontend/tests/client.test.js
+node --test frontend/tests/*.test.js
 ```
 
 The backend suite covers event and distance lifecycle rules, session and
-WebSocket authorization, participant restrictions, and result replacement.
-The frontend suite covers queued score saves, including offline and cleared
-series behavior.
+WebSocket authorization, participant restrictions, result replacement, and
+rejection of empty result batches. The frontend suite covers reconnect state,
+session-bound offline queues, empty host result cells, and concurrent host
+corrections.
