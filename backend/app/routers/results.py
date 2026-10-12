@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Header
 from app.database import DatabaseManager
-from app.models import ResultCreate, ParticipantState, DistanceResult, ShotDetail
+from app.models import ResultCreate, ResultReplace, ParticipantState, DistanceResult, ShotDetail
 from app.routers.sessions import require_session, _verify_session
 from app.routers.events import get_event_status
+from app.websocket_manager import manager
 from typing import List, Optional
 
 router = APIRouter(prefix="/api/results", tags=["results"])
@@ -102,6 +103,10 @@ async def get_distance_detail(code: str, participant_id: int, distance_id: int):
         raise HTTPException(status_code=404, detail="Event not found")
 
     async with db.get_connection() as conn:
+        cursor = await conn.execute("SELECT 1 FROM participants WHERE id=?", (participant_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Participant not found")
+
         cursor = await conn.execute(
             "SELECT title, shots_count FROM distances WHERE id=?", (distance_id,)
         )
@@ -159,6 +164,9 @@ async def get_participant_state(code: str, participant_id: int):
         raise HTTPException(status_code=404, detail="Event not found")
 
     async with db.get_connection() as conn:
+        cursor = await conn.execute("SELECT 1 FROM participants WHERE id=?", (participant_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Participant not found")
         cursor = await conn.execute(
             "SELECT id, title, shots_count, status FROM distances ORDER BY sort_order"
         )
@@ -201,52 +209,132 @@ async def save_results(
     if not db.exists():
         raise HTTPException(status_code=404, detail="Event not found")
 
-    if not x_session_id:
-        raise HTTPException(status_code=401, detail="Session ID required")
+    if not results:
+        return {"message": "Results saved", "count": 0}
 
+    if len({(r.participant_id, r.distance_id) for r in results}) != 1:
+        raise HTTPException(status_code=422, detail="A save request may only contain one participant and distance")
+
+    first = results[0]
+    is_host = await _authorize_result_edit(db, first.participant_id, first.distance_id, x_session_id)
     event_status = await get_event_status(db)
-    if event_status == "finished":
-        raise HTTPException(status_code=403, detail="Event has finished")
-    if event_status != "started":
-        raise HTTPException(status_code=403, detail="Event has not started yet")
-
-    if results:
-        async with db.get_connection() as conn:
-            cursor = await conn.execute(
-                "SELECT lane_number FROM participants WHERE id=?", (results[0].participant_id,)
-            )
-            p_row = await cursor.fetchone()
-
-        if p_row:
-            lane_str = str(p_row[0])
-            ok = await _verify_session(db, "client", lane_str, x_session_id)
-            if not ok:
-                ok = await _verify_session(db, "host", "default", x_session_id)
-            if not ok:
-                raise HTTPException(status_code=401, detail="Invalid session")
+    if event_status != "started" and not (event_status == "finished" and is_host):
+        raise HTTPException(status_code=403, detail="Results may only be changed during a started event")
 
     async with db.get_connection() as conn:
-        dist_ids = {r.distance_id for r in results}
-        for did in dist_ids:
-            cursor = await conn.execute("SELECT status FROM distances WHERE id=?", (did,))
-            row = await cursor.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail=f"Distance {did} not found")
-            if row[0] != "active":
-                raise HTTPException(status_code=403, detail=f"Distance {did} is not active")
+        cursor = await conn.execute("SELECT status, shots_count FROM distances WHERE id=?", (first.distance_id,))
+        distance = await cursor.fetchone()
+        if not distance:
+            raise HTTPException(status_code=404, detail="Distance not found")
+        if distance[0] not in ("active", "finished"):
+            raise HTTPException(status_code=403, detail="Distance has not started")
+        if any(r.shot_number > distance[1] for r in results):
+            raise HTTPException(status_code=422, detail="Shot number exceeds the distance limit")
 
-        for r in results:
-            if r.score < 0 or r.score > 10:
-                raise HTTPException(status_code=400, detail="Score must be 0-10")
-            await conn.execute("""
-                INSERT OR REPLACE INTO results
-                    (participant_id, distance_id, shot_number, score, is_x)
-                VALUES (?, ?, ?, ?, ?)
-            """, (r.participant_id, r.distance_id, r.shot_number, r.score, r.is_x))
-
+        await conn.executemany("""
+            INSERT INTO results (participant_id, distance_id, shot_number, score, is_x)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(participant_id, distance_id, shot_number)
+            DO UPDATE SET score=excluded.score, is_x=excluded.is_x
+        """, [(r.participant_id, r.distance_id, r.shot_number, r.score, r.is_x) for r in results])
         await conn.commit()
 
+    await _broadcast_result(db, code, first.participant_id)
+
     return {"message": "Results saved", "count": len(results)}
+
+
+@router.put("/{code}/participant/{participant_id}/distance/{distance_id}")
+async def replace_distance_results(
+    code: str,
+    participant_id: int,
+    distance_id: int,
+    replacement: ResultReplace,
+    x_session_id: Optional[str] = Header(None),
+):
+    """Replace every recorded shot for one participant on one distance."""
+    db = DatabaseManager(code)
+    if not db.exists():
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    await _authorize_result_edit(db, participant_id, distance_id, x_session_id)
+    event_status = await get_event_status(db)
+    is_host = await _verify_session(db, "host", "default", x_session_id)
+    if event_status == "finished" and not is_host:
+        raise HTTPException(status_code=403, detail="The event has finished")
+
+    async with db.get_connection() as conn:
+        cursor = await conn.execute(
+            "SELECT status, shots_count FROM distances WHERE id=?", (distance_id,)
+        )
+        distance = await cursor.fetchone()
+        if not distance:
+            raise HTTPException(status_code=404, detail="Distance not found")
+        if distance[0] not in ("active", "finished"):
+            raise HTTPException(status_code=403, detail="Distance has not started")
+        if distance[0] == "finished" and not is_host and event_status != "started":
+            raise HTTPException(status_code=403, detail="Only the host may edit this distance")
+        if any(shot.shot_number > distance[1] for shot in replacement.shots):
+            raise HTTPException(status_code=422, detail="Shot number exceeds the distance limit")
+
+        await conn.execute(
+            "DELETE FROM results WHERE participant_id=? AND distance_id=?",
+            (participant_id, distance_id),
+        )
+        await conn.executemany("""
+            INSERT INTO results (participant_id, distance_id, shot_number, score, is_x)
+            VALUES (?, ?, ?, ?, ?)
+        """, [
+            (participant_id, distance_id, shot.shot_number, shot.score, shot.is_x)
+            for shot in replacement.shots
+        ])
+        await conn.commit()
+
+    await _broadcast_result(db, code, participant_id)
+    return {"message": "Results replaced", "count": len(replacement.shots)}
+
+
+async def _authorize_result_edit(
+    db: DatabaseManager,
+    participant_id: int,
+    distance_id: int,
+    session_id: Optional[str],
+) -> bool:
+    """Return whether the caller is the host; otherwise require the participant's lane."""
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Session ID required")
+
+    is_host = await _verify_session(db, "host", "default", session_id)
+    async with db.get_connection() as conn:
+        cursor = await conn.execute(
+            "SELECT lane_number FROM participants WHERE id=?", (participant_id,)
+        )
+        participant = await cursor.fetchone()
+        if not participant:
+            raise HTTPException(status_code=404, detail="Participant not found")
+        cursor = await conn.execute("SELECT id FROM distances WHERE id=?", (distance_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Distance not found")
+
+    if is_host:
+        return True
+    if not await _verify_session(db, "client", str(participant[0]), session_id):
+        raise HTTPException(status_code=401, detail="Invalid session for participant lane")
+    return False
+
+
+async def _broadcast_result(db: DatabaseManager, code: str, participant_id: int):
+    async with db.get_connection() as conn:
+        cursor = await conn.execute(
+            "SELECT COALESCE(SUM(score), 0) FROM results WHERE participant_id=?",
+            (participant_id,),
+        )
+        total_score = (await cursor.fetchone())[0]
+    await manager.broadcast(code, {
+        "type": "result_update",
+        "participant_id": participant_id,
+        "total_score": total_score,
+    })
 
 
 @router.delete("/{code}/{participant_id}")
@@ -261,7 +349,11 @@ async def delete_participant_results(
     await require_session(db, "host", "default", x_session_id)
 
     async with db.get_connection() as conn:
+        cursor = await conn.execute("SELECT id FROM participants WHERE id=?", (participant_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Participant not found")
         await conn.execute("DELETE FROM results WHERE participant_id=?", (participant_id,))
         await conn.commit()
 
+    await _broadcast_result(db, code, participant_id)
     return {"message": "Results deleted"}

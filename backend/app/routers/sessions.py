@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Header
 from app.database import DatabaseManager
 from typing import Optional
+from app.websocket_manager import manager
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -223,4 +224,5 @@ async def reset_lane_session(
         )
         await conn.commit()
 
+    await manager.broadcast(code, {"type": "lane_session_reset", "lane_number": lane_number})
     return {"message": f"Session for lane {lane_number} reset"}

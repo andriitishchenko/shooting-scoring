@@ -8,6 +8,7 @@ from app.models import (
 )
 from app.routers.sessions import require_session, _verify_session
 from app.routers.events import get_event_status
+from app.websocket_manager import manager
 from typing import List, Optional
 
 router = APIRouter(prefix="/api/participants", tags=["participants"])
@@ -52,8 +53,8 @@ async def add_participant(
                 raise HTTPException(status_code=403, detail="Self-registration is disabled by the host")
 
     event_status = await get_event_status(db)
-    if event_status == "finished":
-        raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
+    if event_status != "created":
+        raise HTTPException(status_code=403, detail="Participants can only be added before the event starts")
 
     async with db.get_connection() as conn:
         cursor = await conn.execute("""
@@ -67,7 +68,9 @@ async def add_participant(
         ))
         await conn.commit()
 
-    return {"id": cursor.lastrowid, "message": "Participant added"}
+    participant_id = cursor.lastrowid
+    await manager.broadcast(code, {"type": "refresh"})
+    return {"id": participant_id, "message": "Participant added"}
 
 
 @router.post("/{code}/import", response_model=ParticipantImportResult)
@@ -170,6 +173,8 @@ async def import_participants_csv(
         if added:
             await conn.commit()
 
+    if added:
+        await manager.broadcast(code, {"type": "refresh"})
     return ParticipantImportResult(added=added, failed=failed, errors=errors[:50])
 
 
@@ -213,14 +218,18 @@ async def delete_participant(
     await require_session(db, "host", "default", x_session_id)
 
     event_status = await get_event_status(db)
-    if event_status == "finished":
-        raise HTTPException(status_code=403, detail="Event has finished and cannot be modified.")
+    if event_status != "created":
+        raise HTTPException(status_code=403, detail="Participants can only be deleted before the event starts")
 
     async with db.get_connection() as conn:
+        cursor = await conn.execute("SELECT id FROM participants WHERE id=?", (participant_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Participant not found")
         await conn.execute("DELETE FROM results WHERE participant_id=?",  (participant_id,))
         await conn.execute("DELETE FROM participants WHERE id=?", (participant_id,))
         await conn.commit()
 
+    await manager.broadcast(code, {"type": "refresh"})
     return {"message": "Participant deleted"}
 
 
@@ -235,6 +244,10 @@ async def update_participant(
     if not db.exists():
         raise HTTPException(status_code=404, detail="Event not found")
     await require_session(db, "host", "default", x_session_id)
+
+    event_status = await get_event_status(db)
+    if event_status != "created":
+        raise HTTPException(status_code=403, detail="Participants can only be edited before the event starts")
 
     async with db.get_connection() as conn:
         cursor = await conn.execute("SELECT id FROM participants WHERE id=?", (participant_id,))
@@ -252,4 +265,5 @@ async def update_participant(
         ))
         await conn.commit()
 
+    await manager.broadcast(code, {"type": "refresh"})
     return {"message": "Participant updated", "id": participant_id}

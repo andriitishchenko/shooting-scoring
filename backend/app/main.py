@@ -27,14 +27,21 @@ app.include_router(websocket.router)
 app.include_router(properties.router)
 app.include_router(sessions.router)
 
-frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend")
-if os.path.exists(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-
 
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "message": "Shooting Scoring System v3"}
+
+
+@app.exception_handler(ValueError)
+async def invalid_event_code_handler(request, exc):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
+frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend")
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 
 if __name__ == "__main__":

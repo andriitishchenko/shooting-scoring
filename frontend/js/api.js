@@ -118,6 +118,14 @@ class APIClient {
         });
     }
 
+    async replaceDistanceResults(code, participantId, distanceId, shots, sessionId) {
+        return this.request(`/results/${code}/participant/${participantId}/distance/${distanceId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ shots }),
+            headers: this._sessionHeader(sessionId)
+        });
+    }
+
     async getParticipantState(code, participantId) {
         return this.request(`/results/${code}/state/${participantId}`);
     }

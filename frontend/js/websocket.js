@@ -1,12 +1,14 @@
 // WebSocket Client
 class WSClient {
-    constructor(code) {
+    constructor(code, sessionId) {
         this.code = code;
+        this.sessionId = sessionId;
         this.ws = null;
         this.reconnectInterval = 3000;
         this.listeners = {};
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
+        this.authenticated = false;
     }
 
     connect() {
@@ -17,18 +19,22 @@ class WSClient {
 
             this.ws.onopen = () => {
                 console.log('WebSocket connected');
-                this.reconnectAttempts = 0;
+                this.ws.send(JSON.stringify({ type: 'authenticate', session_id: this.sessionId }));
             };
 
             this.ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                if (data.type === 'authenticated') {
+                    this.authenticated = true;
+                    this.reconnectAttempts = 0;
+                }
                 this.handleMessage(data);
             };
 
-            this.ws.onclose = () => {
+            this.ws.onclose = (event) => {
                 console.log('WebSocket disconnected');
-                
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.authenticated = false;
+                if (event.code !== 1008 && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     console.log(`Reconnecting... (attempt ${this.reconnectAttempts})`);
                     setTimeout(() => this.connect(), this.reconnectInterval);
@@ -55,14 +61,6 @@ class WSClient {
             this.listeners[type] = [];
         }
         this.listeners[type].push(callback);
-    }
-
-    send(data) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(data));
-        } else {
-            console.warn('WebSocket not connected, cannot send message');
-        }
     }
 
     disconnect() {

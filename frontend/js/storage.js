@@ -53,6 +53,32 @@ class Storage {
     // ── Participant state cache ──────────────────────────────────────────────
     static saveParticipantState(pid, state) { this.set(`pstate_${pid}`, state); }
     static getParticipantState(pid)         { return this.get(`pstate_${pid}`); }
+    static _pendingResultKey(code, pid, did) { return `pending_results_${code}_${pid}_${did}`; }
+    static savePendingResults(code, pid, did, lane, shots) {
+        this.set(this._pendingResultKey(code, pid, did), { code, participant_id: pid, distance_id: did, lane_number: lane, shots });
+    }
+    static getPendingResults(code, lane) {
+        try {
+            const prefix = `pending_results_${code}_`;
+            const rows = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key?.startsWith(prefix)) continue;
+                const value = this.get(key);
+                if (value && (lane === undefined || value.lane_number === lane)) rows.push(value);
+            }
+            return rows;
+        } catch (e) {
+            console.error('Storage.getPendingResults error:', e);
+            return [];
+        }
+    }
+    static getPendingResult(code, pid, did) {
+        return this.get(this._pendingResultKey(code, pid, did));
+    }
+    static clearPendingResults(code, pid, did) {
+        this.remove(this._pendingResultKey(code, pid, did));
+    }
     static clearAllParticipantStates() {
         try {
             const keys = [];

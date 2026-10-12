@@ -1,5 +1,5 @@
 import re
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, model_validator
 from typing import Optional, Literal, List
 
 # Allowed characters for event codes - alphanumeric uppercase only
@@ -140,6 +140,35 @@ class ResultCreate(BaseModel):
     shot_number: int = Field(ge=1, le=300)
     score: int = Field(ge=0, le=10)
     is_x: bool = False
+
+    @model_validator(mode='after')
+    def validate_x_score(self):
+        if self.is_x and self.score != 10:
+            raise ValueError('An X must have a score of 10')
+        return self
+
+
+class ShotCreate(BaseModel):
+    shot_number: int = Field(ge=1, le=300)
+    score: int = Field(ge=0, le=10)
+    is_x: bool = False
+
+    @model_validator(mode='after')
+    def validate_x_score(self):
+        if self.is_x and self.score != 10:
+            raise ValueError('An X must have a score of 10')
+        return self
+
+
+class ResultReplace(BaseModel):
+    shots: List[ShotCreate] = Field(max_length=300)
+
+    @model_validator(mode='after')
+    def validate_unique_shots(self):
+        shot_numbers = [shot.shot_number for shot in self.shots]
+        if len(shot_numbers) != len(set(shot_numbers)):
+            raise ValueError('Each shot may only appear once')
+        return self
 
 
 class ShotDetail(BaseModel):

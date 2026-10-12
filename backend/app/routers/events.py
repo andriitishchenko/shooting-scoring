@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Header
 from app.database import DatabaseManager
 from app.models import EventCreate, EventUpdate, EventResponse
 from app.routers.sessions import require_session
+from app.websocket_manager import manager
 from typing import Optional
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -142,19 +143,39 @@ async def update_event(
 
     async with db.get_connection() as conn:
         if update.status:
-            await _set_prop(conn, PROP_STATUS, update.status)
-            if update.status == "started":
+            cursor = await conn.execute(
+                "SELECT value FROM properties WHERE key=?", (PROP_STATUS,)
+            )
+            row = await cursor.fetchone()
+            current_status = row[0] if row else "created"
+            allowed_transition = (
+                (current_status == "created" and update.status == "started")
+                or (current_status == "started" and update.status == "finished")
+            )
+            if update.status != current_status and not allowed_transition:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Cannot change event status from {current_status} to {update.status}",
+                )
+
+            if update.status != current_status:
+                await _set_prop(conn, PROP_STATUS, update.status)
+            if update.status == "started" and current_status == "created":
                 await _set_prop(conn, PROP_STARTED_AT, _now())
-            elif update.status == "finished":
+            elif update.status == "finished" and current_status == "started":
                 await _set_prop(conn, PROP_FINISHED_AT, _now())
                 # Finish any active distance
                 await conn.execute(
                     "UPDATE distances SET status='finished' WHERE status='active'"
                 )
 
-        if update.shots_count:
+        if update.shots_count is not None:
             await _set_prop(conn, PROP_SHOTS, str(update.shots_count))
 
         await conn.commit()
 
+    if update.status:
+        await manager.broadcast(code, {"type": "event_status", "status": update.status})
+    if update.shots_count is not None:
+        await manager.broadcast(code, {"type": "refresh"})
     return {"message": "Event updated"}

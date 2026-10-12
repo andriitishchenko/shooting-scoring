@@ -84,6 +84,13 @@ class DatabaseManager:
                     UNIQUE(role, identifier)
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS event_notifications (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    payload    TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             await db.commit()
 
     def exists(self) -> bool:
@@ -93,6 +100,15 @@ class DatabaseManager:
     async def get_connection(self):
         conn = await aiosqlite.connect(self.db_path)
         try:
+            await conn.execute("PRAGMA foreign_keys = ON")
+            # Existing event databases gain the notification table automatically.
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS event_notifications (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    payload    TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             yield conn
         finally:
             await conn.close()

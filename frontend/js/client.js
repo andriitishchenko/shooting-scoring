@@ -15,11 +15,19 @@ let results             = [];
 let participantState    = null;
 let wsClient            = null;
 let allowAddParticipant = true;
+let currentDistanceId   = null;
+const resultSaveQueue   = new Map();
 
 // ============================================================
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded', async () => {
+    window.addEventListener('online', () => {
+        if (currentCode && currentLane) {
+            _refreshClientState();
+        }
+    });
+
     // Handle ?code= URL param
     const params  = new URLSearchParams(window.location.search);
     const urlCode = params.get('code');
@@ -54,14 +62,6 @@ async function _initConnections() {
         const pub  = await api.getPublicProperties(currentCode);
         allowAddParticipant = pub.client_allow_add_participant !== false;
 
-        if (wsClient) wsClient.disconnect();
-        wsClient = new WSClient(currentCode);
-        wsClient.connect();
-        wsClient.on('event_status',      handleEventStatus);
-        wsClient.on('distance_update',   handleDistanceUpdate);
-        wsClient.on('refresh',           () => loadLaneParticipants());
-        wsClient.on('lane_session_reset', handleLaneSessionReset);
-        wsClient.on('result_update',     () => {});
     } catch (err) {
         alert('Event not found: ' + err.message);
     }
@@ -73,6 +73,7 @@ async function _tryAutoLogin(lane, sessionId) {
         if (res.status === 'ok') {
             // Session still valid
             Storage.saveLaneSession(lane, res.session_id);
+            _connectClientWS(res.session_id);
             await loadLaneParticipants();
         } else {
             // Session expired — go to lane selection
@@ -134,6 +135,7 @@ async function _handleLaneLoginResult(res, laneNumber) {
         currentLane = laneNumber;
         Storage.saveLane(laneNumber);
         Storage.saveLaneSession(laneNumber, res.session_id);
+        _connectClientWS(res.session_id);
         Storage.clearAllParticipantStates();
         _showLanePassword(laneNumber, res.password);
         return;
@@ -144,6 +146,7 @@ async function _handleLaneLoginResult(res, laneNumber) {
         currentLane = laneNumber;
         Storage.saveLane(laneNumber);
         Storage.saveLaneSession(laneNumber, res.session_id);
+        _connectClientWS(res.session_id);
         Storage.clearAllParticipantStates();
         await _refreshLaneData();
         await loadLaneParticipants();
@@ -223,6 +226,7 @@ async function submitLanePassword() {
         if (res.status === 'ok') {
             Storage.saveLane(currentLane);
             Storage.saveLaneSession(currentLane, res.session_id);
+            _connectClientWS(res.session_id);
             Storage.clearAllParticipantStates();
             await _refreshLaneData();
             await loadLaneParticipants();
@@ -241,6 +245,63 @@ async function _refreshLaneData() {
     const pub  = await api.getPublicProperties(currentCode);
     allowAddParticipant = pub.client_allow_add_participant !== false;
     await _refreshAllParticipantStates();
+    await _syncPendingResults();
+    await _refreshAllParticipantStates();
+}
+
+function _connectClientWS(sessionId = Storage.getLaneSession(currentLane)) {
+    if (!sessionId || !currentLane) return;
+    if (wsClient) wsClient.disconnect();
+    wsClient = new WSClient(currentCode, sessionId);
+    wsClient.on('event_status', handleEventStatus);
+    wsClient.on('distance_update', handleDistanceUpdate);
+    wsClient.on('refresh', () => _refreshClientState());
+    wsClient.on('lane_session_reset', handleLaneSessionReset);
+    wsClient.on('result_update', async data => {
+        if (!participants.some(p => p.id === data.participant_id)) return;
+        try {
+            const state = await api.getParticipantState(currentCode, data.participant_id);
+            Storage.saveParticipantState(data.participant_id, _mergePendingResults(data.participant_id, state));
+            renderParticipantsList();
+        } catch {}
+    });
+    wsClient.on('authenticated', () => _refreshClientState());
+    wsClient.connect();
+}
+
+async function _refreshClientState() {
+    const scoreScreen = document.getElementById('score-screen');
+    const wasScoring = scoreScreen && !scoreScreen.classList.contains('hidden') && currentParticipant;
+    if (!wasScoring) return loadLaneParticipants();
+
+    const participantId = currentParticipant.id;
+    const distanceId = currentDistanceId;
+    try {
+        await _refreshLaneData();
+        const activeDistance = distances.find(distance => distance.status === 'active');
+        if (eventData?.status !== 'started' || !activeDistance) {
+            await _autoSave();
+            if (eventData?.status === 'finished' || !activeDistance) {
+                alert('Competition stopped. Any unsent scores are saved on this device for recovery.');
+            }
+            _showScreen('score-screen-hidden');
+            await loadLaneParticipants();
+            return;
+        }
+
+        if (activeDistance.id !== distanceId) {
+            await _autoSave();
+            await openScoreInput(participantId);
+            return;
+        }
+
+        currentParticipant = participants.find(participant => participant.id === participantId) || currentParticipant;
+        participantState = Storage.getParticipantState(participantId) || participantState;
+        renderScoreGrid();
+        updateTotalScore();
+    } catch (err) {
+        console.warn('Could not refresh lane state:', err);
+    }
 }
 
 // ============================================================
@@ -253,6 +314,8 @@ async function loadLaneParticipants() {
         participants = await api.getParticipants(currentCode, currentLane);
         const pub    = await api.getPublicProperties(currentCode);
         allowAddParticipant = pub.client_allow_add_participant !== false;
+        await _refreshAllParticipantStates();
+        await _syncPendingResults();
         await _refreshAllParticipantStates();
 
         document.getElementById('lane-badge').textContent = currentLane;
@@ -269,9 +332,43 @@ async function _refreshAllParticipantStates() {
     await Promise.all(participants.map(async p => {
         try {
             const state = await api.getParticipantState(currentCode, p.id);
-            Storage.saveParticipantState(p.id, state);
+            Storage.saveParticipantState(p.id, _mergePendingResults(p.id, state));
         } catch {}
     }));
+}
+
+function _mergePendingResults(participantId, serverState) {
+    const state = JSON.parse(JSON.stringify(serverState));
+    for (const pending of Storage.getPendingResults(currentCode, currentLane)) {
+        if (pending.participant_id !== participantId) continue;
+        const distance = state.distances.find(d => d.distance_id === pending.distance_id);
+        if (!distance) continue;
+        distance.shots = pending.shots
+            .map(shot => ({ shot: shot.shot_number, score: shot.score, is_x: shot.is_x }))
+            .sort((a, b) => a.shot - b.shot);
+        distance.total_score = distance.shots.length
+            ? distance.shots.reduce((sum, shot) => sum + shot.score, 0)
+            : null;
+        distance.x_count = distance.shots.filter(shot => shot.is_x).length;
+    }
+    return state;
+}
+
+async function _syncPendingResults() {
+    if (eventData?.status !== 'started') return;
+    const code = currentCode;
+    const lane = currentLane;
+    const sessionId = Storage.getLaneSession(lane);
+    for (const pending of Storage.getPendingResults(code, lane)) {
+        try {
+            await _queueResultReplacement(
+                code, pending.participant_id, pending.distance_id, lane, sessionId,
+                pending.shots, true
+            );
+        } catch (err) {
+            console.warn('Pending results could not be synced yet:', err);
+        }
+    }
 }
 
 function _renderAddParticipantButton() {
@@ -338,7 +435,6 @@ async function submitParticipant(e) {
     };
     try {
         await api.addParticipant(currentCode, participant, sid);
-        wsClient.send({ type: 'refresh' });
         await loadLaneParticipants();
         hideAddParticipant();
         document.getElementById('participant-form').reset();
@@ -358,13 +454,17 @@ async function openScoreInput(participantId) {
 
     currentParticipant = participants.find(p => p.id === participantId);
     try {
-        participantState = await api.getParticipantState(currentCode, participantId);
+        participantState = _mergePendingResults(
+            participantId,
+            await api.getParticipantState(currentCode, participantId)
+        );
         Storage.saveParticipantState(participantId, participantState);
     } catch {
         participantState = Storage.getParticipantState(participantId) || { distances: [] };
     }
 
     const activeState = participantState.distances.find(d => d.distance_id === activeDist.id);
+    currentDistanceId = activeDist.id;
     results = activeState ? activeState.shots.map(s => ({
         participant_id: participantId,
         distance_id:    activeDist.id,
@@ -438,6 +538,7 @@ function selectShot(series, shot, ev) {
             results = results.filter(r => r.shot !== shotNum);
             renderScoreGrid();
             updateTotalScore();
+            _saveCurrentResults();
         }
         return;
     }
@@ -447,6 +548,10 @@ function selectShot(series, shot, ev) {
 }
 
 function inputScore(score, isX = false) {
+    if (eventData?.status !== 'started') {
+        alert('Scores can only be entered while the competition is running. Your saved scores remain on this device.');
+        return;
+    }
     const ad = _getActiveDist();
     if (!ad) { alert('No active distance.'); return; }
 
@@ -474,7 +579,8 @@ function inputScore(score, isX = false) {
     _updateSeriesTotal(series);
 
     const seriesCount = results.filter(r => Math.ceil(r.shot / 3) === series).length;
-    if (seriesCount === 3) { renderScoreGrid(); _autoSave(); }
+    if (seriesCount === 3) renderScoreGrid();
+    _saveCurrentResults();
 
     _currentShot = _findNextEmpty();
     if (_currentShot) {
@@ -544,8 +650,7 @@ async function deleteLastScore() {
         _scrollToSeries(series);
     }
 
-    // Persist immediately
-    await _autoSave();
+    await _saveCurrentResults();
 }
 
 function _seriesScore(s) {
@@ -580,10 +685,73 @@ function _mapForApi() {
 }
 
 async function _autoSave() {
-    if (!currentParticipant || !results.length) return;
-    const sid = Storage.getLaneSession(currentLane);
-    try { await api.saveResults(currentCode, _mapForApi(), sid); }
-    catch (err) { console.error('Auto-save failed:', err); }
+    if (!currentParticipant || !currentDistanceId) return true;
+    return _saveCurrentResults();
+}
+
+async function _saveCurrentResults() {
+    if (!currentParticipant || !currentDistanceId) return false;
+    const code = currentCode;
+    const participantId = currentParticipant.id;
+    const distanceId = currentDistanceId;
+    const lane = currentLane;
+    const sessionId = Storage.getLaneSession(lane);
+    const snapshot = _mapForApi().map(({shot_number, score, is_x}) => ({shot_number, score, is_x}));
+    Storage.savePendingResults(code, participantId, distanceId, lane, snapshot);
+    const status = document.getElementById('save-status');
+    if (status && currentParticipant?.id === participantId) status.textContent = 'Saving…';
+
+    const key = `${code}:${participantId}:${distanceId}`;
+    try {
+        const result = await _queueResultReplacement(
+            code, participantId, distanceId, lane, sessionId, snapshot
+        );
+        if (result.cleared) {
+            try {
+                const fresh = await api.getParticipantState(code, participantId);
+                if (currentCode === code && currentLane === lane) {
+                    Storage.saveParticipantState(participantId, _mergePendingResults(participantId, fresh));
+                }
+            } catch {}
+        }
+        if (result.cleared && currentCode === code && currentParticipant?.id === participantId
+            && currentDistanceId === distanceId && status) {
+            status.textContent = 'Saved';
+        }
+        return result.sent;
+    } catch (err) {
+        console.warn('Results remain saved on this device and will retry when the connection returns:', err);
+        if (currentCode === code && currentParticipant?.id === participantId
+            && currentDistanceId === distanceId && status) {
+            status.textContent = 'Saved on device; waiting to sync';
+        }
+        return false;
+    }
+}
+
+async function _queueResultReplacement(code, participantId, distanceId, lane, sessionId, fallbackShots, onlyIfPending = false) {
+    const key = `${code}:${participantId}:${distanceId}`;
+    const previous = resultSaveQueue.get(key) || Promise.resolve();
+    const task = previous.catch(() => {}).then(async () => {
+        const pending = Storage.getPendingResult(code, participantId, distanceId);
+        if (onlyIfPending && !pending) return { sent: false, cleared: false };
+        const latestShots = pending?.shots ?? fallbackShots;
+        await api.replaceDistanceResults(
+            code, participantId, distanceId, latestShots, sessionId
+        );
+        const latest = Storage.getPendingResult(code, participantId, distanceId);
+        const cleared = !latest || JSON.stringify(latest.shots) === JSON.stringify(latestShots);
+        if (latest && cleared) {
+            Storage.clearPendingResults(code, participantId, distanceId);
+        }
+        return { sent: true, cleared };
+    });
+    resultSaveQueue.set(key, task);
+    try {
+        return await task;
+    } finally {
+        if (resultSaveQueue.get(key) === task) resultSaveQueue.delete(key);
+    }
 }
 
 async function backToParticipants() {
@@ -598,22 +766,8 @@ async function backToParticipants() {
             }
         }
     }
-    const sid = Storage.getLaneSession(currentLane);
-    try {
-        if (results.length) {
-            await api.saveResults(currentCode, _mapForApi(), sid);
-            const total = results.reduce((a, r) => a + r.score, 0);
-            wsClient.send({ type: 'result_update', participant_id: currentParticipant.id, total_score: total });
-        }
-        if (currentParticipant) {
-            try {
-                const fresh = await api.getParticipantState(currentCode, currentParticipant.id);
-                Storage.saveParticipantState(currentParticipant.id, fresh);
-            } catch {}
-        }
-    } catch (err) {
-        console.error('Save error:', err);
-        alert('Error saving. Reconnect and try again.');
+    if (results.length || Storage.getPendingResult(currentCode, currentParticipant?.id, currentDistanceId)) {
+        await _autoSave();
     }
     _showScreen('score-screen-hidden');
     await loadLaneParticipants();
@@ -639,16 +793,40 @@ function handleEventStatus(data) {
         const scoreVisible = !document.getElementById('score-screen').classList.contains('hidden');
         const ad = distances.find(x => x.status === 'active');
         if (scoreVisible) {
-            if (!ad) { alert('Active distance stopped by host. Results saved.'); await backToParticipants(); }
-            else if (changed) renderScoreGrid();
+            if (!ad || data.status === 'finished') {
+                await _autoSave();
+                alert('Competition stopped. Any unsent scores are saved on this device for recovery.');
+                await backToParticipants();
+            } else if (changed) {
+                const currentResultDistance = results[0]?.distance_id ?? currentDistanceId;
+                if (currentResultDistance !== ad.id) {
+                    await _autoSave();
+                    await openScoreInput(currentParticipant.id);
+                } else renderScoreGrid();
+            }
         } else if (changed) { renderParticipantsList(); }
     }).catch(() => {});
 }
 
 function handleDistanceUpdate(data) {
     api.getDistances(currentCode).then(async d => {
+        const previousActive = distances.find(x => x.status === 'active')?.id;
         distances = d;
-        renderParticipantsList();
+        eventData = await api.getEvent(currentCode);
+        const nextActive = distances.find(x => x.status === 'active');
+        const scoreVisible = !document.getElementById('score-screen').classList.contains('hidden');
+        if (scoreVisible && currentParticipant) {
+            if (!nextActive) {
+                await _autoSave();
+                await backToParticipants();
+            } else if (previousActive !== nextActive.id) {
+                await _autoSave();
+                await openScoreInput(currentParticipant.id);
+            }
+        } else {
+            if (participants?.length) await _refreshAllParticipantStates();
+            renderParticipantsList();
+        }
     }).catch(() => {});
 }
 
@@ -675,6 +853,7 @@ function backToCode() {
 }
 
 function backToLane() {
+    if (wsClient) wsClient.disconnect();
     Storage.clearLane();
     currentLane = null;
     _showScreen('lane-screen');

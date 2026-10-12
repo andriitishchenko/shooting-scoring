@@ -173,7 +173,7 @@ function renderParticipantRoster(participants) {
                 .filter(Boolean).join(' · ');
 
             row.innerHTML = `
-                <span class="lb-lane roster-lane-shift">${p.lane_number}${p.shift}</span>
+                <span class="lb-lane roster-lane-shift">${p.lane_number}${_esc(p.shift)}</span>
                 <span class="lb-name roster-name">
                     ${_esc(p.name)}
                     ${meta ? `<span class="roster-meta">${_esc(meta)}</span>` : ''}
@@ -246,7 +246,7 @@ function renderLeaderboard(grouped) {
 
                 row.innerHTML = `
                     <span class="lb-rank">${showRank ? index + 1 : ''}</span>
-                    <span class="lb-lane">${entry.lane_shift}</span>
+                    <span class="lb-lane">${_esc(entry.lane_shift)}</span>
                     <span class="lb-name">${_esc(entry.name)}${distHtml}</span>
                     <span class="lb-xten"><span class="x-count">X${entry.x_count}</span><span class="ten-count"> 10·${entry.ten_count}</span></span>
                     <span class="lb-score">${entry.total_score}${shotsHtml}</span>`;

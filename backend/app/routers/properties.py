@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Header
 from app.database import DatabaseManager
 from app.routers.sessions import require_session
+from app.websocket_manager import manager
 from typing import Optional
 
 router = APIRouter(prefix="/api/properties", tags=["properties"])
@@ -68,6 +69,7 @@ async def update_properties(
             )
         await conn.commit()
 
+    await manager.broadcast(code, {"type": "refresh"})
     return {"message": "Properties updated"}
 
 

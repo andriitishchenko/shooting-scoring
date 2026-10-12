@@ -122,13 +122,14 @@ function _updateHeaderDisplay() {
 
 function _connectWS() {
     if (wsClient) wsClient.disconnect();
-    wsClient = new WSClient(currentCode);
+    wsClient = new WSClient(currentCode, Storage.getHostSession());
     wsClient.connect();
     wsClient.on('result_update', () => {
         loadParticipants();
         if (document.getElementById('tab-results').classList.contains('active')) loadResults();
     });
     wsClient.on('refresh', () => loadParticipants());
+    wsClient.on('authenticated', () => loadEventData());
 }
 
 // ============================================================
@@ -187,7 +188,6 @@ async function startEvent() {
         document.getElementById('add-participant-btn').disabled = true;
         updateStatusDisplay('started');
         renderDistances();
-        wsClient.send({ type: 'event_status', status: 'started' });
         alert('Competition started! Use distance buttons to start each distance.');
     } catch (err) { alert('Error: ' + err.message); }
 }
@@ -200,7 +200,6 @@ async function finishEvent() {
         document.getElementById('finish-btn').classList.add('hidden');
         updateStatusDisplay('finished');
         await loadDistances();
-        wsClient.send({ type: 'event_status', status: 'finished' });
         alert('Competition finished!');
     } catch (err) { alert('Error: ' + err.message); }
 }
@@ -284,7 +283,6 @@ async function addDistance() {
     try {
         await api.addDistance(currentCode, { title: `Distance ${currentDistances.length + 1}`, shots_count: 30 });
         await loadDistances();
-        wsClient.send({ type: 'refresh' });
     } catch (err) { alert(err.message); }
 }
 
@@ -295,7 +293,6 @@ async function updateDistTitle(distId, newTitle) {
     try {
         await api.updateDistance(currentCode, distId, { title: newTitle.trim() });
         await loadDistances();
-        wsClient.send({ type: 'refresh' });
     } catch (err) { alert(err.message); }
 }
 
@@ -309,7 +306,6 @@ async function changeShots(distId, delta) {
         d.shots_count = newCount;
         const el = document.getElementById(`shots-val-${distId}`);
         if (el) el.textContent = newCount;
-        wsClient.send({ type: 'refresh' });
     } catch (err) { alert(err.message); }
 }
 
@@ -322,8 +318,6 @@ async function startDistance(distId) {
     try {
         await api.updateDistance(currentCode, distId, { status: 'active' });
         await loadDistances();
-        wsClient.send({ type: 'event_status', status: 'started', active_distance_id: distId });
-        wsClient.send({ type: 'distance_update', distance_id: distId, status: 'active' });
     } catch (err) { alert(err.message); }
 }
 
@@ -333,8 +327,6 @@ async function stopDistance(distId) {
     try {
         await api.updateDistance(currentCode, distId, { status: 'finished' });
         await loadDistances();
-        wsClient.send({ type: 'event_status', status: 'started', active_distance_id: null });
-        wsClient.send({ type: 'distance_update', distance_id: distId, status: 'finished' });
     } catch (err) { alert(err.message); }
 }
 
@@ -343,7 +335,6 @@ async function deleteDistance(distId) {
     try {
         await api.deleteDistance(currentCode, distId);
         await loadDistances();
-        wsClient.send({ type: 'refresh' });
     } catch (err) { alert(err.message); }
 }
 
@@ -379,6 +370,7 @@ function renderParticipants(participants, sessionLanes = []) {
     participants.sort((a, b) => a.lane_number - b.lane_number || a.shift.localeCompare(b.shift));
     const byLane = {};
     participants.forEach(p => { (byLane[p.lane_number] = byLane[p.lane_number] || []).push(p); });
+    const canManageParticipants = currentEventData?.status === 'created';
 
     container.innerHTML = allLanes.map(lane => {
         const ps = byLane[lane] || [];
@@ -388,7 +380,7 @@ function renderParticipants(participants, sessionLanes = []) {
             : '';
         const participantRows = ps.map(p => `
             <div class="participant-row">
-                <div class="participant-lane-shift">${p.lane_number}${p.shift}</div>
+                <div class="participant-lane-shift">${p.lane_number}${escHtml(p.shift)}</div>
                 <div class="participant-details">
                     <div class="participant-name-inline">${escHtml(p.name)}</div>
                     <div class="participant-meta">
@@ -400,8 +392,10 @@ function renderParticipants(participants, sessionLanes = []) {
                     </div>
                 </div>
                 <div class="participant-actions">
-                    <button class="btn-edit-inline" data-pid="${p.id}" onclick="editParticipant(${p.id})">✎ Edit</button>
-                    <button class="btn btn-sm btn-danger" data-pid="${p.id}" onclick="removeParticipant(${p.id})">🗑️</button>
+                    ${canManageParticipants ? `
+                        <button class="btn-edit-inline" data-pid="${p.id}" onclick="editParticipant(${p.id})">✎ Edit</button>
+                        <button class="btn btn-sm btn-danger" data-pid="${p.id}" onclick="removeParticipant(${p.id})">🗑️</button>
+                    ` : ''}
                 </div>
             </div>`).join('');
 
@@ -428,7 +422,6 @@ async function resetLaneSession(laneNumber) {
     try {
         await api.resetLaneSession(currentCode, laneNumber);
         // Notify client on that lane via WS
-        wsClient.send({ type: 'lane_session_reset', lane_number: laneNumber });
         alert(`Session for Lane ${laneNumber} has been reset.`);
         await loadParticipants();
     } catch (err) { alert('Error resetting session: ' + err.message); }
@@ -447,6 +440,7 @@ function showAddParticipantModal() {
 }
 
 function editParticipant(pid) {
+    if (currentEventData?.status !== 'created') return;
     const p = allParticipants.find(x => x.id === pid);
     if (!p) return;
     document.getElementById('modal-title').textContent = 'Edit Participant';
@@ -486,7 +480,6 @@ async function submitParticipant(e) {
     try {
         if (pid) await api.updateParticipant(currentCode, pid, data);
         else     await api.addParticipant(currentCode, data);
-        wsClient.send({ type: 'refresh' });
         closeParticipantModal();
         await loadParticipants();
         alert(pid ? 'Participant updated!' : 'Participant added!');
@@ -495,10 +488,9 @@ async function submitParticipant(e) {
 
 async function removeParticipant(pid) {
     if (!confirm('Remove this participant?')) return;
-    if (currentEventData?.status === 'finished') { alert('Cannot remove after competition finished.'); return; }
+    if (currentEventData?.status !== 'created') { alert('Participants can only be removed before the competition starts.'); return; }
     try {
         await api.deleteParticipant(currentCode, pid);
-        wsClient.send({ type: 'refresh' });
         await loadParticipants();
     } catch (err) { alert('Error: ' + err.message); }
 }
@@ -543,7 +535,6 @@ async function saveSettings() {
         else Storage.clearHostPassword();
         _updateHeaderDisplay();
         // Notify all clients to re-fetch public properties (allow_add may have changed)
-        if (wsClient) wsClient.send({ type: 'refresh' });
         closeSettingsModal();
         alert('Settings saved!');
     } catch (err) {
@@ -592,7 +583,7 @@ function renderResults(grouped) {
         const distHeaders = distOrder.map(d => `<th class="th-dist">${escHtml(d.title)}</th>`).join('');
         html += `
         <div class="results-group">
-            <div class="results-group-title">${formatGroupTitle(groupKey.split('_'))}</div>
+            <div class="results-group-title">${escHtml(formatGroupTitle(groupKey.split('_')))}</div>
             <table class="results-table">
                 <thead><tr>
                     <th style="width:46px;">Rank</th>
@@ -617,7 +608,7 @@ function renderResults(grouped) {
                     <tr>
                         <td><span class="result-rank rank-${i+1}">${i+1}</span></td>
                         <td><strong>${escHtml(entry.name)}</strong></td>
-                        <td>${entry.lane_shift}</td>
+                        <td>${escHtml(entry.lane_shift)}</td>
                         ${distCells}
                         <td><span class="result-score">${entry.total_score}</span></td>
                         <td class="avg-score-cell">${avg}</td>
@@ -663,11 +654,15 @@ async function openDetailModal(participantId, distanceId, participantName) {
             &nbsp;·&nbsp; X: <strong>${detail.x_count}</strong>
             &nbsp;·&nbsp; 10: <strong>${detail.ten_count}</strong>`;
 
+        const distanceStatus = currentDistances.find(distance => distance.id === distanceId)?.status;
+        const editable = ['started', 'finished'].includes(currentEventData?.status)
+            && ['active', 'finished'].includes(distanceStatus);
         const seriesHTML = detail.series.map(s => {
             const shotBtns = s.shots.map(sh => {
-                if (sh.score === null) return `<button class="shot-btn" disabled></button>`;
-                const cls = _shotColorClass(sh.score, sh.is_x);
-                return `<button class="shot-btn filled ${cls}" disabled>${sh.is_x ? 'X' : sh.score}</button>`;
+                const empty = sh.score === null;
+                const cls = empty ? '' : _shotColorClass(sh.score, sh.is_x);
+                const value = empty ? '' : (sh.is_x ? 'X' : sh.score);
+                return `<button class="shot-btn ${empty ? '' : `filled ${cls}`}" type="button" data-edit-shot="${sh.shot}" title="${empty ? 'Enter' : 'Edit'} shot ${sh.shot}" ${editable ? '' : 'disabled'}>${value}</button>`;
             }).join('');
             const hasShots = s.shots.some(sh => sh.score !== null);
             const avg = hasShots ? s.avg.toFixed(2) : '—';
@@ -679,7 +674,16 @@ async function openDetailModal(participantId, distanceId, participantName) {
             </div>`;
         }).join('');
 
-        body.innerHTML = `<div class="detail-score-grid">${seriesHTML}</div>`;
+        _detailContext.shots = detail.series.flatMap(s => s.shots
+            .filter(sh => sh.score !== null)
+            .map(sh => ({shot_number: sh.shot, score: sh.score, is_x: sh.is_x})));
+        body.innerHTML = `<div class="detail-score-grid ${editable ? 'detail-score-grid-editable' : ''}">${seriesHTML}</div>`;
+        if (editable) {
+            body.querySelectorAll('[data-edit-shot]').forEach(button => {
+                button.addEventListener('click', () => editDetailShot(Number(button.dataset.editShot)));
+            });
+            body.insertAdjacentHTML('beforeend', '<p class="detail-edit-hint">Select a shot to correct its score. Leave the score blank to clear it.</p>');
+        }
     } catch (err) {
         body.innerHTML = `<p class="error-text">Error: ${err.message}</p>`;
         subtitle.textContent = '';
@@ -689,6 +693,37 @@ async function openDetailModal(participantId, distanceId, participantName) {
 function closeDetailModal() {
     document.getElementById('detail-modal').classList.add('hidden');
     _detailContext = null;
+}
+
+async function editDetailShot(shotNumber) {
+    if (!_detailContext) return;
+    const previous = _detailContext.shots.find(shot => shot.shot_number === shotNumber);
+    const initial = previous ? (previous.is_x ? 'X' : String(previous.score)) : '';
+    const entered = window.prompt(`Correct shot ${shotNumber}. Enter 0–10 or X; leave blank to clear.`, initial);
+    if (entered === null) return;
+
+    const value = entered.trim().toUpperCase();
+    const shots = _detailContext.shots.filter(shot => shot.shot_number !== shotNumber);
+    if (value) {
+        if (value !== 'X' && !/^(10|[0-9])$/.test(value)) {
+            alert('Enter a score from 0 to 10, X, or leave the field blank to clear this shot.');
+            return;
+        }
+        shots.push({shot_number: shotNumber, score: value === 'X' ? 10 : Number(value), is_x: value === 'X'});
+    } else if (!previous) {
+        return;
+    }
+    shots.sort((a, b) => a.shot_number - b.shot_number);
+
+    const {participantId, distanceId} = _detailContext;
+    try {
+        await api.replaceDistanceResults(currentCode, participantId, distanceId, shots, Storage.getHostSession());
+        const participantName = document.getElementById('detail-modal-title').textContent;
+        await Promise.all([loadParticipants(), loadResults()]);
+        await openDetailModal(participantId, distanceId, participantName);
+    } catch (err) {
+        alert(`Could not update shot: ${err.message}`);
+    }
 }
 
 function closeQRModal() {
@@ -732,7 +767,6 @@ async function importCSV(event) {
         alert('Import complete!\n' + msg.join('\n'));
 
         if (result.added > 0) {
-            wsClient.send({ type: 'refresh' });
             await loadParticipants();
         }
         event.target.value = '';

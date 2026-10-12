@@ -182,6 +182,8 @@
 
 .score-header h2 { margin: 0; font-size: var(--font-xl); }
 .score-header #total-score { font-size: var(--font-3xl); font-weight: 700; color: var(--primary); }
+.score-header-total { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+#save-status { min-height: 1em; color: var(--muted); font-size: .75rem; }
 .score-header .btn { padding: var(--spacing-sm) var(--spacing-md); min-height: auto; font-size: var(--font-base); }
 
 /* ── Score grid ─────────────────────────────────────────────────────────── */

@@ -11,8 +11,9 @@ event via a shared code.
 
 - **Session-based auth** — host, viewer and each lane have independent
   sessions stored in `localStorage`; no passwords appear in HTML or URLs
-- **Single-event databases** — one SQLite file per event code; no migrations,
-  always created fresh from the current schema
+- **Single-event databases** — one SQLite file per event code; new databases
+  use the current schema, and existing databases gain the notification table
+  automatically when opened
 - **Role separation** — host controls everything; clients enter scores for
   their own lane; viewers display the live leaderboard
 - **Multi-distance support** — unlimited ordered distances per event
@@ -20,8 +21,10 @@ event via a shared code.
 - **Pre-competition roster** — viewer shows participant list sorted by lane
   and shift before the competition starts; switches to ranked leaderboard
   automatically once host starts the event
-- **Real-time sync** — WebSocket broadcast from host keeps all clients
-  updated on event/distance status and session resets
+- **Real-time sync** — authenticated WebSockets receive server-side updates
+  for event and distance status, roster changes, scores, and lane resets
+- **Offline score recovery** — score changes stay in the lane browser until
+  the server confirms them, then retry when connectivity returns
 - **Self-registration control** — host can allow or block clients from
   adding participants; enforced on both server and client side
 - **Click-to-copy** — event code and passwords are copyable badges
@@ -54,7 +57,7 @@ shooting-scoring/
 │   │   ├── config.py             # DATABASE_DIR, ALLOWED_ORIGINS
 │   │   ├── database.py           # DatabaseManager, init_db()
 │   │   ├── models.py             # Pydantic request/response models
-│   │   ├── websocket_manager.py  # In-memory WS connection pool
+│   │   ├── websocket_manager.py  # Per-event WS connections and DB-backed fan-out
 │   │   └── routers/
 │   │       ├── events.py         # CRUD + event lifecycle; event fields
 │   │       │                     #   stored as properties (no event table)
@@ -63,7 +66,7 @@ shooting-scoring/
 │   │       ├── results.py        # Shot saving, leaderboard, state restore
 │   │       ├── properties.py     # Auth settings (passwords, allow_add)
 │   │       ├── sessions.py       # Host/viewer/lane session management
-│   │       └── websocket.py      # WS endpoint + message relay
+│   │       └── websocket.py      # Authenticated WS endpoint
 │   ├── databases/                # Created at runtime — one .db per event
 │   └── requirements.txt
 └── frontend/
@@ -76,13 +79,15 @@ shooting-scoring/
     │   ├── storage.js            # localStorage helpers (sessions, codes)
     │   ├── api.js                # REST client (APIClient class)
     │   └── websocket.js          # WSClient class
-    └── css/
+    ├── css/
         ├── reset.css
         ├── variables.css         # Design tokens
         ├── main.css
         ├── host.css
         ├── client.css
         └── viewer.css
+    └── tests/
+        └── client.test.js         # Client score queue regression tests
 ```
 
 ---
@@ -98,6 +103,11 @@ Each event creates `databases/event_{CODE}.db` with these tables:
 | `participants` | Competitor info (name, lane, shift, gender, bow type…) |
 | `results` | Individual shot scores (`participant_id, distance_id, shot_number, score, is_x`) |
 | `sessions` | Auth tokens per role+identifier (`host/default`, `viewer/default`, `client/{lane}`) |
+| `event_notifications` | Server-generated updates shared across server workers |
+
+The notification table is also created automatically when an existing event
+database is opened. Other schema changes do not have a general migration
+system.
 
 ### Properties keys
 
@@ -123,6 +133,7 @@ Each event creates `databases/event_{CODE}.db` with these tables:
 | `POST` | `/api/events/create` | — | Create event, returns `host_password` + `session_id` |
 | `GET` | `/api/events/{code}` | — | Event info |
 | `PATCH` | `/api/events/{code}` | Host | Update status / shots_count |
+| `GET` | `/api/health` | — | Health status |
 
 ### Sessions
 | Method | Path | Auth | Description |
@@ -155,9 +166,10 @@ Each event creates `databases/event_{CODE}.db` with these tables:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/api/results/{code}/leaderboard` | — | Grouped ranked leaderboard |
-| `GET` | `/api/results/{code}/state/{pid}` | — | Full participant state for restore |
+| `GET` | `/api/results/{code}/state/{pid}` | — | Participant state for restore; shot details are omitted for finished distances |
 | `GET` | `/api/results/{code}/detail/{pid}/{did}` | — | Series detail for host popup |
 | `POST` | `/api/results/{code}` | Lane client or Host | Save shots |
+| `PUT` | `/api/results/{code}/participant/{pid}/distance/{did}` | Participant's lane or Host | Replace `{ "shots": [...] }`; `{ "shots": [] }` clears the series |
 | `DELETE` | `/api/results/{code}/{pid}` | Host | Clear participant results |
 
 ### Properties
@@ -171,15 +183,26 @@ Each event creates `databases/event_{CODE}.db` with these tables:
 ```
 WS /ws/{code}
 ```
-Messages relayed to all room members:
+
+After opening the socket, send `{"type":"authenticate","session_id":"…"}`.
+The server validates the event session and replies with
+`{"type":"authenticated","role":"…"}`. The server owns room notifications;
+client messages cannot publish updates. Notifications are stored per event so
+connections on separate server workers receive the same updates.
+
+Lane clients keep pending score changes in browser storage and retry the full
+distance score set when the event is started and the server is reachable. A
+successful replacement removes the pending local copy. A finished event
+rejects client score changes; the host can still correct a distance through
+the results detail view.
 
 | `type` | Direction | Payload |
 |--------|-----------|---------|
-| `event_status` | host → all | `{ status, active_distance_id }` |
-| `distance_update` | host → all | `{ distance_id, status }` |
-| `refresh` | host → all | — |
-| `lane_session_reset` | host → all | `{ lane_number }` |
-| `result_update` | client → all | `{ participant_id, total_score }` |
+| `event_status` | server → all | `{ status }` |
+| `distance_update` | server → all | `{ distance_id, status }` |
+| `refresh` | server → all | — |
+| `lane_session_reset` | server → all | `{ lane_number }` |
+| `result_update` | server → all | `{ participant_id, total_score }` |
 
 ---
 
@@ -232,7 +255,7 @@ Interactive API docs: `http://localhost:8000/docs`
 
 **`backend/app/config.py`**
 ```python
-DATABASE_DIR    = "databases"
+DATABASE_DIR    = "./databases"
 ALLOWED_ORIGINS = ["*"]          # restrict in production
 ```
 
@@ -243,17 +266,37 @@ WS_BASE_URL  = "ws://<host>:<port>"
 CODE_LENGTH  = 6
 ```
 
+The browser interface requires a six-character event code by default. The API
+accepts uppercase letters and digits from 1 to 16 characters.
+
+---
+
+## Tests
+
+Run the backend API regression tests from `backend/` with the project's Python
+dependencies installed, then run the frontend score-queue tests from the
+repository root:
+
+```bash
+cd backend
+python -m pytest -q tests/test_backend.py
+cd ..
+node --test frontend/tests/client.test.js
+```
+
 ---
 
 ## Deployment (Production)
 
 ```bash
-# Serve with gunicorn + uvicorn workers
-gunicorn app.main:app \
-  -w 4 -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000
+# Run the API without the development auto-reloader
+cd backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-# Reverse proxy (nginx example)
+Nginx reverse proxy example:
+
+```nginx
 location / {
     proxy_pass http://127.0.0.1:8000;
     proxy_set_header Upgrade $http_upgrade;
@@ -265,4 +308,3 @@ Recommendations:
 - Enable HTTPS (required for secure WebSocket `wss://`)
 - Set `ALLOWED_ORIGINS` to your domain
 - Schedule periodic backup of `databases/` directory
-- Use `loguru` or structured logging for production observability

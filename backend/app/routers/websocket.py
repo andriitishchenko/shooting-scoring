@@ -1,4 +1,6 @@
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from app.database import DatabaseManager
 from app.websocket_manager import manager
 
 router = APIRouter()
@@ -6,41 +8,51 @@ router = APIRouter()
 
 @router.websocket("/ws/{code}")
 async def websocket_endpoint(websocket: WebSocket, code: str):
-    await manager.connect(websocket, code)
+    await websocket.accept()
+    connected = False
     try:
+        data = await asyncio.wait_for(websocket.receive_json(), timeout=10)
+        if not isinstance(data, dict):
+            await websocket.close(code=1008)
+            return
+        session_id = data.get("session_id")
+        if data.get("type") != "authenticate" or not isinstance(session_id, str):
+            await websocket.close(code=1008)
+            return
+
+        try:
+            db = DatabaseManager(code)
+        except ValueError:
+            await websocket.close(code=1008)
+            return
+        if not db.exists():
+            await websocket.close(code=1008)
+            return
+
+        async with db.get_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT role, identifier FROM sessions WHERE session_id=?", (session_id,)
+            )
+            session = await cursor.fetchone()
+
+        if session is None:
+            await websocket.close(code=1008)
+            return
+
+        role, identifier = session
+        await websocket.send_json({"type": "authenticated", "role": role})
+        await manager.connect(websocket, code)
+        connected = True
+
         while True:
-            data = await websocket.receive_json()
-            msg_type = data.get("type")
-
-            if msg_type == "result_update":
-                await manager.broadcast(code, {
-                    "type": "result_update",
-                    "participant_id": data.get("participant_id"),
-                    "total_score": data.get("total_score")
-                })
-            elif msg_type == "event_status":
-                await manager.broadcast(code, {
-                    "type": "event_status",
-                    "status": data.get("status"),
-                    "active_distance_id": data.get("active_distance_id")
-                })
-            elif msg_type == "refresh":
-                await manager.broadcast(code, {"type": "refresh"})
-            elif msg_type == "lane_session_reset":
-                # Notify a specific lane that its session was reset
-                await manager.broadcast(code, {
-                    "type": "lane_session_reset",
-                    "lane_number": data.get("lane_number")
-                })
-            elif msg_type == "distance_update":
-                await manager.broadcast(code, {
-                    "type": "distance_update",
-                    "distance_id": data.get("distance_id"),
-                    "status": data.get("status")
-                })
-
+            await websocket.receive()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, code)
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        manager.disconnect(websocket, code)
+        pass
+    except asyncio.TimeoutError:
+        try:
+            await websocket.close(code=1008)
+        except RuntimeError:
+            pass
+    finally:
+        if connected:
+            manager.disconnect(websocket, code)

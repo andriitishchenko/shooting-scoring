@@ -3,6 +3,7 @@ from app.database import DatabaseManager
 from app.models import DistanceCreate, DistanceUpdate, DistanceResponse
 from app.routers.sessions import require_session
 from app.routers.events import get_event_status
+from app.websocket_manager import manager
 from typing import List, Optional
 
 router = APIRouter(prefix="/api/distances", tags=["distances"])
@@ -57,6 +58,7 @@ async def add_distance(
         )
         row = await cursor.fetchone()
 
+    await manager.broadcast(code, {"type": "refresh"})
     return DistanceResponse(id=row[0], title=row[1], shots_count=row[2], sort_order=row[3], status=row[4])
 
 
@@ -73,6 +75,8 @@ async def update_distance(
     await require_session(db, "host", "default", x_session_id)
 
     event_status = await get_event_status(db)
+    if event_status == "finished":
+        raise HTTPException(status_code=403, detail="Event is finished")
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
@@ -98,21 +102,23 @@ async def update_distance(
                 )
                 await conn.execute("UPDATE distances SET status='active' WHERE id=?", (distance_id,))
             elif ns == "pending":
-                if current_status == "finished":
-                    raise HTTPException(status_code=403, detail="Finished distance cannot go back to pending")
-                await conn.execute("UPDATE distances SET status='pending' WHERE id=?", (distance_id,))
+                if current_status != "pending":
+                    raise HTTPException(status_code=403, detail="Started distances cannot return to pending")
             elif ns == "finished":
-                if current_status != "active":
+                if current_status == "finished":
+                    pass
+                elif current_status != "active":
                     raise HTTPException(status_code=403, detail="Only active distance can be finished")
-                await conn.execute("UPDATE distances SET status='finished' WHERE id=?", (distance_id,))
+                else:
+                    await conn.execute("UPDATE distances SET status='finished' WHERE id=?", (distance_id,))
 
         if update.title is not None:
-            if current_status != "pending":
+            if current_status != "pending" or update.status not in (None, "pending"):
                 raise HTTPException(status_code=403, detail="Can only edit title of pending distances")
             await conn.execute("UPDATE distances SET title=? WHERE id=?", (update.title, distance_id))
 
         if update.shots_count is not None:
-            if current_status != "pending":
+            if current_status != "pending" or update.status not in (None, "pending"):
                 raise HTTPException(status_code=403, detail="Can only edit shots of pending distances")
             await conn.execute("UPDATE distances SET shots_count=? WHERE id=?", (update.shots_count, distance_id))
 
@@ -123,6 +129,14 @@ async def update_distance(
         )
         row = await cursor.fetchone()
 
+    if update.status:
+        await manager.broadcast(code, {
+            "type": "distance_update",
+            "distance_id": distance_id,
+            "status": row[4],
+        })
+    else:
+        await manager.broadcast(code, {"type": "refresh"})
     return DistanceResponse(id=row[0], title=row[1], shots_count=row[2], sort_order=row[3], status=row[4])
 
 
@@ -136,6 +150,8 @@ async def delete_distance(
     if not db.exists():
         raise HTTPException(status_code=404, detail="Event not found")
     await require_session(db, "host", "default", x_session_id)
+    if await get_event_status(db) == "finished":
+        raise HTTPException(status_code=403, detail="Event is finished")
 
     async with db.get_connection() as conn:
         cursor = await conn.execute("SELECT status FROM distances WHERE id=?", (distance_id,))
@@ -147,7 +163,11 @@ async def delete_distance(
         cursor = await conn.execute("SELECT COUNT(*) FROM distances")
         if (await cursor.fetchone())[0] <= 1:
             raise HTTPException(status_code=403, detail="Cannot delete the last distance")
+        cursor = await conn.execute("SELECT COUNT(*) FROM results WHERE distance_id=?", (distance_id,))
+        if (await cursor.fetchone())[0]:
+            raise HTTPException(status_code=409, detail="Cannot delete a distance that has scores")
         await conn.execute("DELETE FROM distances WHERE id=?", (distance_id,))
         await conn.commit()
 
+    await manager.broadcast(code, {"type": "refresh"})
     return {"message": "Distance deleted"}

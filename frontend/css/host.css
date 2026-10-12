@@ -585,6 +585,9 @@
 }
 .detail-series-row .shot-btn.filled { background: var(--primary); border-color: var(--primary); color: #fff; }
 .detail-series-row .shot-btn:disabled { opacity: 1; }
+.detail-score-grid-editable .detail-series-row .shot-btn { cursor: pointer; }
+.detail-score-grid-editable .detail-series-row .shot-btn:hover { outline: 2px solid var(--primary); outline-offset: 2px; }
+.detail-edit-hint { margin: 12px 0 0; color: #666; font-size: .875rem; text-align: center; }
 .detail-series-row .shot-btn:empty { background: #f0f0f0; border-color: #e0e0e0; }
 
 .detail-avg-label { font-size: 0.75rem; color: #888; font-weight: 400; }
