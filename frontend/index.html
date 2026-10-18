@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Shooting Scoring System</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Shooting Scoring System</h1>
+        <p style="text-align: center; color: var(--gray-600); margin-bottom: var(--spacing-xl);">
+            Select your role to continue
+        </p>
+        
+        <div class="button-group">
+            <button class="btn btn-primary" data-click="navigate" data-args='["host.html"]'>
+                HOST
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    Create and manage event
+                </div>
+            </button>
+            
+            <button class="btn btn-secondary" data-click="navigate" data-args='["client.html"]'>
+                CLIENT
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    Enter scores
+                </div>
+            </button>
+            
+            <button class="btn btn-tertiary" data-click="navigate" data-args='["viewer.html"]'>
+                VIEWER
+                <div style="font-size: var(--font-sm); font-weight: normal; margin-top: 4px;">
+                    View leaderboard
+                </div>
+            </button>
+        </div>
+        
+        <div style="margin-top: var(--spacing-2xl); padding: var(--spacing-lg); background: white; border-radius: var(--radius-lg);">
+            <h3>Quick Guide</h3>
+            <ul style="list-style: none; padding: 0; color: var(--gray-700);">
+                <li style="margin-bottom: var(--spacing-sm);">
+                    <strong style="color: #FF0000;">ALL DATA IS SCHEDULED TO BE DELETED AT MIDNIGHT!</strong> export results if you want to keep it
+                </li>
+                <li style="margin-bottom: var(--spacing-sm);">
+                    <strong>HOST:</strong> Create event with 6-alphadigit code, manage participants and settings
+                </li>
+                <li style="margin-bottom: var(--spacing-sm);">
+                    <strong>CLIENT:</strong> Enter code, select lane, input shooting scores
+                </li>
+                <li>
+                    <strong>VIEWER:</strong> Enter code to view live leaderboard
+                </li>
+                    <li style="margin-bottom: var(--spacing-sm);">
+                    This service does not guarantee the completeness, accuracy, or timeliness of the data and assumes no responsibility for any decisions made or actions taken based on the information provided.
+
+<strong style="color: #FF0000;">Use of this service is at your own risk.</strong> The administration and developers shall not be liable for any losses, damages, or other consequences arising from the use of, or inability to use, this resource.
+                     
+                </li>
+
+            </ul>
+        </div>
+    </div>
+<script src="js/actions.js"></script>
+</body>
+</html>

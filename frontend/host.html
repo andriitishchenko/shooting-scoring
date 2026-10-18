@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HOST - Admin Panel</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/host.css">
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────────────────── -->
+<div id="code-screen" class="screen">
+    <div class="container">
+        <h1>HOST Login</h1>
+        <p class="login-hint">Enter event code to manage your competition.</p>
+        <input type="text" id="code-input" maxlength="6" placeholder="6-character event code"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;">
+        <input type="password" id="password-input" placeholder="Admin password (leave empty for new event)"
+               autocomplete="off" class="password-input">
+        <button class="btn btn-primary" data-click="hostEnter">Enter</button>
+        <button class="btn btn-secondary" data-click="navigate" data-args='["index.html"]'>Back</button>
+    </div>
+</div>
+
+<!-- ── ADMIN SCREEN ──────────────────────────────────────────────────────── -->
+<div id="admin-screen" class="screen hidden">
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="admin-header">
+            <div>
+                <h1>Admin Panel</h1>
+                <div class="event-meta-row">
+                    <span id="event-code-display" class="event-meta-badge clickable-badge" title="Tap to copy code">—</span>
+                    <span id="event-password-display" class="event-meta-badge event-pw-badge clickable-badge" title="Tap to copy password"></span>
+                    <button class="btn-copy-link" id="btn-copy-client"  data-click="copyLink" data-args='["client"]'>📋 Client</button>
+                    <button class="btn-copy-link" id="btn-qr-client"  data-click="showQR" data-args='["client"]'>QR</button>
+                    <button class="btn-copy-link" id="btn-copy-viewer"  data-click="copyLink" data-args='["viewer"]'>📋 Viewer</button>
+                    <button class="btn-icon" id="btn-settings" data-click="openSettingsModal" title="Event Settings">⚙️</button>
+                </div>
+            </div>
+            <div id="status-badge" class="status-badge"></div>
+        </div>
+
+        <!-- CONTROL PANEL -->
+        <div class="control-panel">
+            <div class="control-buttons">
+                <button class="btn btn-success" id="start-btn"  data-click="startEvent"><span>▶</span> Start</button>
+                <button class="btn btn-danger hidden" id="finish-btn" data-click="finishEvent"><span>■</span> Finish</button>
+                <button class="btn btn-secondary" data-click="pickCsv"><span>📥</span> Import CSV</button>
+                <input type="file" id="csv-import" accept=".csv" class="hidden" data-change="importCsv">
+                <button class="btn btn-tertiary" data-click="exportCSV"><span>⬇</span> Export CSV</button>
+                <button class="btn" data-click="exitHost"><span>←</span> Exit</button>
+            </div>
+        </div>
+
+        <!-- DISTANCES -->
+        <div class="distances-panel">
+            <div class="distances-header">
+                <h2>Distances</h2>
+                <button class="btn btn-success btn-sm" id="add-distance-btn" data-click="addDistance">+ Add Distance</button>
+            </div>
+            <div id="distances-list" class="distances-list"></div>
+        </div>
+
+        <!-- TABS -->
+        <div id="reset-banner" class="reset-banner hidden" role="status" aria-live="polite" data-click="showParticipantsTab"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-btn-participants" data-click="switchTab" data-args='["participants"]'>👥 PARTICIPANTS</button>
+            <button class="tab-btn"        id="tab-btn-results"      data-click="switchTab" data-args='["results"]'>🏆 RESULTS</button>
+        </div>
+
+        <!-- PARTICIPANTS TAB -->
+        <div id="tab-participants" class="tab-content active">
+            <div class="tab-header">
+                <h2>Participants</h2>
+                <div class="tab-actions">
+                    <button class="btn btn-success" id="add-participant-btn" data-click="showAddParticipantModal">+ Add Participant</button>
+                </div>
+            </div>
+            <div id="participants-container" class="participants-grid"></div>
+        </div>
+
+        <!-- RESULTS TAB -->
+        <div id="tab-results" class="tab-content hidden">
+            <div class="tab-header">
+                <h2>Results</h2>
+                <div class="results-filters">
+                    <select id="filter-gender" data-change="filterResults">
+                        <option value="">All Genders</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                    <select id="filter-type" data-change="filterResults">
+                        <option value="">All Types</option>
+                        <option value="compound">Compound Bow</option>
+                        <option value="barebow">Barebow</option>
+                        <option value="recurve">Recurve</option>
+                    </select>
+                    <button class="btn btn-sm btn-secondary" data-click="loadResults">🔄 Refresh</button>
+                </div>
+            </div>
+            <div id="results-container" class="results-table-container"></div>
+        </div>
+    </div><!-- /container -->
+
+    <!-- PARTICIPANT MODAL -->
+    <div id="participant-modal" class="modal hidden" data-backdrop="closeParticipantModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add Participant</h2>
+                <button class="modal-close" data-click="closeParticipantModal">×</button>
+            </div>
+            <form id="participant-form" data-submit="submitParticipant">
+                <input type="hidden" id="edit-participant-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input type="text" id="p-name" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Lane *</label>
+                        <input type="number" id="p-lane" min="1" max="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Shift *</label>
+                        <input type="text" id="p-shift" maxlength="1" required style="text-transform:uppercase;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="p-gender">
+                            <option value="">Not specified</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Age Category</label>
+                        <input type="text" id="p-age-category" placeholder="e.g., Junior, Senior">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Shooting Type</label>
+                        <select id="p-shooting-type">
+                            <option value="">Not specified</option>
+                            <option value="compound">Compound Bow</option>
+                            <option value="barebow">Barebow</option>
+                            <option value="recurve">Recurve</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Group</label>
+                        <input type="text" id="p-group">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Personal Number</label>
+                        <input type="text" id="p-number">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-click="closeParticipantModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submit-participant-btn">Add Participant</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DISTANCE DETAIL MODAL -->
+    <div id="detail-modal" class="modal hidden" data-backdrop="closeDetailModal">
+        <div class="modal-content detail-modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="detail-modal-title">Distance Detail</h2>
+                    <div id="detail-modal-subtitle" class="detail-subtitle"></div>
+                </div>
+                <button class="modal-close" data-click="closeDetailModal">×</button>
+            </div>
+            <div id="detail-modal-body" class="detail-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- QR MODAL -->
+    <div id="qr-modal" class="modal hidden" data-backdrop="closeQRModal">
+        <div class="modal-content detail-modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="qr-modal-title">Scan to open client</h2>
+                    <div id="qr-modal-subtitle" class="detail-subtitle"></div>
+                </div>
+                <button class="modal-close" data-click="closeQRModal">×</button>
+            </div>
+            <div id="qr-modal-body" class="detail-modal-body">
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal hidden" data-backdrop="closeSettingsModal">
+        <div class="modal-content settings-modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Event Settings</h2>
+                <button class="modal-close" data-click="closeSettingsModal">×</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-group">
+                    <label class="settings-label">HOST Admin Password</label>
+                    <input type="password" id="setting-host-pw" minlength="12" maxlength="64" placeholder="Leave blank to keep current password" autocomplete="new-password">
+                    <small class="settings-hint">A new password must be at least 12 characters. Host password protection cannot be disabled.</small>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">VIEWER Password</label>
+                    <input type="password" id="setting-viewer-pw" minlength="12" maxlength="64" placeholder="Leave blank to keep current password" autocomplete="new-password">
+                    <small class="settings-hint">Set a password of at least 12 characters, or enable public viewing below.</small>
+                    <label class="settings-label settings-label-checkbox">
+                        <input type="checkbox" id="setting-viewer-public" class="settings-checkbox">
+                        Make leaderboard public (remove viewer password)
+                    </label>
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label settings-label-checkbox">
+                        <input type="checkbox" id="setting-allow-add" class="settings-checkbox">
+                        Allow clients to self-register on their lane
+                    </label>
+                    <small class="settings-hint">Enables "Add Participant" button on client lane screen</small>
+                </div>
+                <div id="settings-error" class="settings-error hidden"></div>
+                <div class="modal-footer">
+                    <button class="btn" data-click="closeSettingsModal">Cancel</button>
+                    <button class="btn btn-primary" data-click="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div><!-- /admin-screen -->
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/websocket.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="js/ranking.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Client - Score Entry</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/client.css">
+</head>
+<body>
+<div class="client-notices">
+    <p id="client-notice" class="error-banner hidden" role="status" aria-live="polite"></p>
+    <button id="recovery-download" class="btn hidden" data-action="download-recovery">Download unsent scores</button>
+</div>
+
+<!-- Code entry -->
+<div id="code-screen" class="screen">
+    <div class="container">
+        <h1>CLIENT Entry</h1>
+        <input type="text" id="code-input" maxlength="6" placeholder="Enter event code"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;">
+        <button class="btn btn-primary" data-action="enter">Enter</button>
+        <button class="btn" data-action="home">Back</button>
+    </div>
+</div>
+
+<!-- Lane selection -->
+<div id="lane-screen" class="screen hidden">
+    <div class="screen-header">
+            <button class="btn" data-action="back-code">Back</button>
+            <h2 class="screen-title">Select Lane</h2>
+            <div></div>
+        </div>
+    <div class="container">        
+        <div id="lane-buttons" class="lane-buttons"></div>        
+    </div>
+</div>
+
+<!-- Lane first-entry: show password (dynamically injected via JS — no password in HTML) -->
+<div id="lane-password-screen" class="screen hidden">
+    <div class="container">
+        <h1 id="lane-pw-screen-title">Lane Password</h1>
+        <p class="lane-pw-hint">Keep this password. Use it to access this lane from another device.</p>
+        <div id="lane-pw-display" class="lane-pw-box" data-action="copy-password" title="Tap to copy">
+            <!-- password injected by JS -->
+        </div>
+        <p class="lane-pw-copy-hint">Tap to copy</p>
+        <button class="btn btn-primary" data-action="continue-password">Continue →</button>
+    </div>
+</div>
+
+<!-- Lane password prompt (someone else already on this lane) -->
+<div id="lane-auth-screen" class="screen hidden">
+    <div class="container">
+        <h1 id="lane-auth-title">Lane Password Required</h1>
+        <p class="lane-pw-hint">This lane is already in use. Enter the password to access it.</p>
+        <input type="text" id="lane-pw-input" placeholder="Lane password" maxlength="64"
+               autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:0.2em;">
+        <div id="lane-pw-error" class="error-banner hidden"></div>
+        <button class="btn btn-primary" data-action="submit-password">Enter</button>
+        <button class="btn btn-secondary" id="lane-reset-btn" data-action="request-reset">Forgot the password? Ask the host to reset it</button>
+        <p id="lane-reset-status" class="lane-reset-status hidden" role="status" aria-live="polite"></p>
+        <button class="btn hidden" id="lane-reset-cancel" data-action="cancel-reset">Cancel the request</button>
+        <button class="btn" data-action="back-lane">← Back to Lanes</button>
+    </div>
+</div>
+
+<!-- Participants list -->
+<div id="participants-screen" class="screen hidden">
+    <div class="participants-top-bar">
+        <button class="btn" data-action="back-lane">← Lane</button>
+        <h2 class="participants-title">Lane <span id="lane-badge" class="lane-badge"></span></h2>
+        <button class="btn btn-success btn-sm hidden" id="add-participant-btn" data-action="add-participant">+ Add</button>
+    </div>
+    <div class="container participants-body">
+        <div id="participants-list"></div>
+    </div>
+</div>
+
+<!-- Add participant form -->
+<div id="add-participant-screen" class="screen hidden">
+    <div class="container">
+        <h2>New Participant</h2>
+        <form id="participant-form">
+            <input type="text"   id="p-name"          placeholder="Name *" required>
+            <input type="text"   id="p-shift"         placeholder="Shift (A, B, C…) *" maxlength="1" required style="text-transform:uppercase;">
+            <select id="p-gender">
+                <option value="">Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <input type="text"   id="p-age-category"  placeholder="Age Category">
+            <select id="p-shooting-type">
+                <option value="">Shooting Type</option>
+                <option value="compound">Compound Bow</option>
+                <option value="barebow">Barebow</option>
+                <option value="recurve">Recurve</option>
+            </select>
+            <input type="text"   id="p-group"         placeholder="Group">
+            <input type="text"   id="p-number"        placeholder="Personal Number">
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn" data-action="cancel-participant">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<!-- Score input -->
+<div id="score-screen" class="screen hidden">
+    <div class="score-input-screen">
+        <div class="score-header">
+            <button class="btn" data-action="back-participants">← Back</button>
+            <h2 id="participant-name"></h2>
+            <div class="score-header-total"><div id="total-score">0</div><div id="save-status" role="status" aria-live="polite"></div></div>
+        </div>
+        <div class="score-grid" id="score-grid"></div>
+        <div class="score-buttons">
+            <button class="score-btn yellow" data-score="10" data-x="true">X</button>
+            <button class="score-btn yellow" data-score="10">10</button>
+            <button class="score-btn yellow" data-score="9">9</button>
+            <button class="score-btn red"    data-score="8">8</button>
+            <button class="score-btn red"    data-score="7">7</button>
+            <button class="score-btn blue"   data-score="6">6</button>
+            <button class="score-btn blue"   data-score="5">5</button>
+            <button class="score-btn black"  data-score="4">4</button>
+            <button class="score-btn black"  data-score="3">3</button>
+            <button class="score-btn white"  data-score="2">2</button>
+            <button class="score-btn white"  data-score="1">1</button>
+            <button class="score-btn miss"   data-score="0">M</button>
+            <button class="score-btn delete-btn" data-action="delete-score" title="Delete last score">⌫</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/websocket.js"></script>
+<script src="js/client.js"></script>
+</body>
+</html>
