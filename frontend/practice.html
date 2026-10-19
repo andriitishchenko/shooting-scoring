@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Practice - Score Counter</title>
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/client.css">
+</head>
+<body>
+<!-- Start: the number of arrows -->
+<div id="practice-setup" class="screen">
+    <div class="container">
+        <h1>PRACTICE</h1>
+        <p class="practice-hint">Count your score without a server. The list stays on this device.</p>
+        <label for="arrows-input" class="practice-label">Number of arrows</label>
+        <input type="text" id="arrows-input" inputmode="numeric" enterkeyhint="go" maxlength="3" value="30"
+               autocomplete="off" data-enter="startPractice">
+        <p id="practice-error" class="error-banner hidden" role="alert"></p>
+        <div class="practice-actions">
+            <button class="btn btn-primary" data-click="startPractice">Start</button>
+            <button class="btn" data-click="navigate" data-args='["index.html"]'>Back</button>
+        </div>
+    </div>
+</div>
+
+<!-- Score input (the same form as the CLIENT) -->
+<div id="practice-screen" class="screen hidden">
+    <div class="score-input-screen">
+        <div class="score-header">
+            <button class="btn" data-click="newPractice">New</button>
+            <h2>Practice</h2>
+            <div class="score-header-total">
+                <div id="total-score">0</div>
+                <div class="practice-info"><span id="practice-stats"></span> · <span id="practice-status" role="status" aria-live="polite"></span></div>
+                <div id="practice-note" class="practice-note" role="status"></div>
+            </div>
+        </div>
+        <div class="score-grid" id="score-grid"></div>
+        <div class="score-buttons">
+            <button class="score-btn yellow" data-click="practiceScore" data-args="[10, true]">X</button>
+            <button class="score-btn yellow" data-click="practiceScore" data-args="[10]">10</button>
+            <button class="score-btn yellow" data-click="practiceScore" data-args="[9]">9</button>
+            <button class="score-btn red"    data-click="practiceScore" data-args="[8]">8</button>
+            <button class="score-btn red"    data-click="practiceScore" data-args="[7]">7</button>
+            <button class="score-btn blue"   data-click="practiceScore" data-args="[6]">6</button>
+            <button class="score-btn blue"   data-click="practiceScore" data-args="[5]">5</button>
+            <button class="score-btn black"  data-click="practiceScore" data-args="[4]">4</button>
+            <button class="score-btn black"  data-click="practiceScore" data-args="[3]">3</button>
+            <button class="score-btn white"  data-click="practiceScore" data-args="[2]">2</button>
+            <button class="score-btn white"  data-click="practiceScore" data-args="[1]">1</button>
+            <button class="score-btn miss"   data-click="practiceScore" data-args="[0]">M</button>
+            <button class="score-btn delete-btn" data-click="deletePracticeScore" title="Delete last score">⌫</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/offline.js"></script>
+<script src="js/practice.js"></script>
+</body>
+</html>

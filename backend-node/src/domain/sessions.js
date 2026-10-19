@@ -62,7 +62,9 @@ export function createSessions({ hasher, throttle, sessionDays, now = Date.now }
     db.run("UPDATE sessions SET expires_at = ? WHERE token_hash = ?", now() + lifetime, hash);
 
   // Check a password with the limits. The attempt counts before the check.
-  async function checkPassword(role, id, address, password, stored, message) {
+  // The account key has the event code. The failures of one event do not lock another event.
+  async function checkPassword(db, role, lane, address, password, stored, message) {
+    const id = `${db.code}:${lane}`;
     throttle.reserve(role, id, address);
     let matches;
     try {
@@ -86,7 +88,7 @@ export function createSessions({ hasher, throttle, sessionDays, now = Date.now }
       return answer(session_id, stored);
     }
     if (stored)
-      await checkPassword(role, "-", address, password ?? "", stored, `Invalid ${role === "host" ? "admin" : "viewer"} password`);
+      await checkPassword(db, role, "-", address, password ?? "", stored, `Invalid ${role === "host" ? "admin" : "viewer"} password`);
     return db.tx(() => {
       if (credential(db, role) !== stored) fail(401, "The password changed. Try again.");
       return answer(issue(db, role), stored);
@@ -118,7 +120,7 @@ export function createSessions({ hasher, throttle, sessionDays, now = Date.now }
       });
     }
     if (!password) return { status: "password_required", lane_number: lane };
-    await checkPassword("lane", String(lane), address, password.toUpperCase(), row.password_hash, "Invalid lane password");
+    await checkPassword(db, "lane", String(lane), address, password.toUpperCase(), row.password_hash, "Invalid lane password");
     return db.tx(() => {
       if (!db.get("SELECT 1 AS found FROM lanes WHERE lane = ?", lane))
         fail(409, "The lane session was reset. Try again.");

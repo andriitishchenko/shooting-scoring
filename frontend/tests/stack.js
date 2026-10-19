@@ -64,8 +64,8 @@ async function stack(t, { shots = 6 } = {}) {
         clients.push(b);
         return b;
     };
-    const makeClient = values => makePage(['api.js', 'websocket.js', 'client.js'], values);
-    const makeHost = () => makePage(['api.js', 'websocket.js', 'ranking.js', 'actions.js', 'host.js']);
+    const makeClient = values => makePage(['api.js', 'websocket.js', 'scoring.js', 'client.js'], values);
+    const makeHost = () => makePage(['api.js', 'websocket.js', 'ranking.js', 'scoring.js', 'actions.js', 'host.js']);
     const makeViewer = () => makePage(['api.js', 'websocket.js', 'ranking.js', 'actions.js', 'viewer.js']);
     return { call, host, hostPassword: created.host_password, participant, distance, start, state, makeClient, makeHost, makeViewer, makePage, base, control };
 }

@@ -860,11 +860,13 @@ async function editDetailShot(shotNumber) {
         } else if (!previous) {
             return;
         }
-        shots.sort((a, b) => a.shot_number - b.shot_number);
+        // Each series is in order from the highest to the lowest, like on the lane page.
+        const ordered = sortSeries(shots.map(({ shot_number, ...rest }) => ({ ...rest, shot: shot_number })))
+            .map(({ shot, ...rest }) => ({ shot_number: shot, ...rest }));
 
         const {participantId, distanceId} = detailContext;
         const code = detailContext.code ?? currentCode;
-        await api.replaceDistanceResults(code, participantId, distanceId, shots, AppStorage.getHostSession());
+        await api.replaceDistanceResults(code, participantId, distanceId, ordered, AppStorage.getHostSession());
         const participantName = detailContext.participantName ?? document.getElementById('detail-modal-title').textContent;
         await Promise.all([loadParticipants(), loadResults()]);
         if (_detailContext === detailContext && currentCode === code) {
@@ -1018,11 +1020,17 @@ function copyLink(role) {
     const base = window.location.href.replace(/\/[^/]*(\?.*)?$/, '/');
     const url  = `${base}${role}.html?code=${currentCode}`;
     const btn  = document.getElementById(`btn-copy-${role}`);
-    const orig = btn.textContent;
+    // A second click during the message must not keep the message as the label.
     const done = () => {
+        if (!btn._copyTimer) btn._copyText = btn.textContent;
+        clearTimeout(btn._copyTimer);
         btn.textContent = '✓ Copied!';
         btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+        btn._copyTimer = setTimeout(() => {
+            btn._copyTimer = null;
+            btn.textContent = btn._copyText;
+            btn.classList.remove('copied');
+        }, 2000);
     };
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(url).then(done).catch(() => _fallbackCopy(url, done));
@@ -1089,10 +1097,12 @@ function copyLanePassword(password, element) {
 function copyToClipboard(text, elementId, successMsg) {
     if (!text) return;
     const el   = document.getElementById(elementId);
-    const orig = el.textContent;
+    // A second tap during the message must not keep the message on the badge.
     const done = () => {
+        if (!el._copyTimer) el._copyText = el.textContent;
+        clearTimeout(el._copyTimer);
         el.textContent = `✓ ${successMsg}`;
-        setTimeout(() => { el.textContent = orig; }, 1500);
+        el._copyTimer = setTimeout(() => { el._copyTimer = null; el.textContent = el._copyText; }, 1500);
     };
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(done).catch(() => _fallbackCopy(text, done));

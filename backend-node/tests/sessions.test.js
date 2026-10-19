@@ -292,6 +292,23 @@ test("a correct login removes the failure count", async (t) => {
   for (let i = 0; i < 9; i++) assert.equal((await wrong()).status, 401);
 });
 
+test("the failure count of an account belongs to one event", async (t) => {
+  const { request, createEvent } = await startApp(t);
+  const own = await createEvent("OWN001");
+  const other = await createEvent("OTHER1");
+  const wrong = (code) => login(request, code, "host", { password: "wrong-password" });
+  // Failures in one event do not lock the same role in another event.
+  for (let i = 0; i < 10; i++) assert.equal((await wrong(own.code)).status, 401);
+  assert.equal((await wrong(own.code)).status, 429);
+  assert.equal((await login(request, other.code, "host", { password: other.password })).status, 200);
+  // A correct login in one event does not remove the failures of another event.
+  for (let i = 0; i < 9; i++) assert.equal((await wrong(other.code)).status, 401);
+  const third = await createEvent("THIRD1");
+  assert.equal((await login(request, third.code, "host", { password: third.password })).status, 200);
+  assert.equal((await wrong(other.code)).status, 401);
+  assert.equal((await wrong(other.code)).status, 429);
+});
+
 test("failed logins from one address are limited across all lanes and roles", async (t) => {
   const { request, createEvent } = await startApp(t, { loginFailureLimit: 3 });
   const { code } = await createEvent();

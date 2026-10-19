@@ -624,3 +624,43 @@ test('the viewer page has the switch with the right attributes', () => {
     assert.match(tag, /data-click="toggleAutoScroll"/);
     assert.ok(html.indexOf('id="autoscroll-toggle"') > html.indexOf('id="results-screen"'), 'the switch is on the leaderboard screen');
 });
+
+// A double tap on "Enter" starts two entries at the same time.
+test('viewer entering twice at the same time keeps one live socket and one refresh timer', async () => {
+    const gate = deferred();
+    const { b, sockets, timers } = viewerContext({
+        async getEvent() { await gate.promise; return { status: 'created' }; },
+    });
+    const first = b.run(`_enterViewer('ABC123', 'token')`);
+    const second = b.run(`_enterViewer('ABC123', 'token')`);
+    gate.resolve();
+    await Promise.all([first, second]);
+    assert.equal(sockets.filter(socket => !socket.stopped).length, 1);
+    assert.equal(timers.count(timer => timer.interval && timer.ms === 2 * 60 * 1000), 1);
+    b.run('exitViewer(true)');
+    assert.equal(sockets.filter(socket => !socket.stopped).length, 0);
+    assert.equal(timers.pending.size, 0);
+});
+
+// A second tap during the "Copied" message must not keep the message on the badge.
+test('a fast second tap on the event code badge shows the code again after the message', async () => {
+    const { b, timers } = hostContext();
+    b.get('event-code-display').textContent = 'Code: HOST01';
+    b.run(`copyToClipboard('HOST01', 'event-code-display', 'Code copied!')`);
+    b.run(`copyToClipboard('HOST01', 'event-code-display', 'Code copied!')`);
+    assert.equal(b.get('event-code-display').textContent, '✓ Code copied!');
+    await timers.fire();
+    assert.equal(b.get('event-code-display').textContent, 'Code: HOST01');
+});
+
+test('a fast second click on a copy link button shows the label again after the message', async () => {
+    const { b, timers } = hostContext();
+    b.context.window.location.href = 'https://scores.example/host.html';
+    b.get('btn-copy-viewer').textContent = 'Copy viewer link';
+    b.run(`copyLink('viewer')`);
+    b.run(`copyLink('viewer')`);
+    assert.equal(b.get('btn-copy-viewer').textContent, '✓ Copied!');
+    await timers.fire();
+    assert.equal(b.get('btn-copy-viewer').textContent, 'Copy viewer link');
+    assert.equal(b.get('btn-copy-viewer').classList.contains('copied'), false);
+});

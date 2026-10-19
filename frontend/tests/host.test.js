@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const hostScript = fs.readFileSync(path.join(__dirname, '../js/host.js'), 'utf8');
 const rankingScript = fs.readFileSync(path.join(__dirname, '../js/ranking.js'), 'utf8');
+const scoringScript = fs.readFileSync(path.join(__dirname, '../js/scoring.js'), 'utf8');
 const actionsScript = fs.readFileSync(path.join(__dirname, '../js/actions.js'), 'utf8');
 
 function createHostContext() {
@@ -15,6 +16,7 @@ function createHostContext() {
     };
     const context = vm.createContext({
         window: { addEventListener() {}, prompt: () => '9' },
+        CONFIG: { SERIES_SIZE: 3 },
         document: {
             addEventListener() {},
             getElementById(id) {
@@ -28,6 +30,7 @@ function createHostContext() {
         console: { warn() {} },
     });
     vm.runInContext(rankingScript, context, { filename: 'ranking.js' });
+    vm.runInContext(scoringScript, context, { filename: 'scoring.js' });
     vm.runInContext(actionsScript, context, { filename: 'actions.js' });
     vm.runInContext(hostScript, context, { filename: 'host.js' });
     return { context, resultsContainer };
@@ -171,4 +174,37 @@ test('host builds the QR code in the browser from the shared event URL', () => {
     assert.match(image.src, /^data:image\/svg\+xml;charset=utf-8,/);
     assert.equal(decodeURIComponent(image.src.split(',')[1]), '<svg data-scalable="true"></svg>');
     assert.equal(image.title, 'scan to open client');
+});
+
+test('a correction of the host keeps each series ordered from the highest to the lowest', async () => {
+    const { context } = createHostContext();
+    const replacements = [];
+    context.api = { async replaceDistanceResults(code, participantId, distanceId, shots) { replacements.push(JSON.parse(JSON.stringify(shots))); } };
+    context.loadParticipants = async () => {};
+    context.loadResults = async () => {};
+    context.window.prompt = () => '10';
+    vm.runInContext(`
+        currentCode = 'EVENT';
+        _detailContext = { participantId: 4, distanceId: 10, shots: [{ shot_number: 1, score: 9, is_x: false }, { shot_number: 2, score: 5, is_x: false }, { shot_number: 4, score: 3, is_x: false }] };
+    `, context);
+    await vm.runInContext('editDetailShot(3)', context);
+    assert.deepEqual(replacements[0], [
+        { shot_number: 1, score: 10, is_x: false }, { shot_number: 2, score: 9, is_x: false }, { shot_number: 3, score: 5, is_x: false },
+        { shot_number: 4, score: 3, is_x: false },
+    ]);
+});
+
+test('a correction of the host that lowers a shot moves it down in its series', async () => {
+    const { context } = createHostContext();
+    const replacements = [];
+    context.api = { async replaceDistanceResults(code, participantId, distanceId, shots) { replacements.push(JSON.parse(JSON.stringify(shots))); } };
+    context.loadParticipants = async () => {};
+    context.loadResults = async () => {};
+    context.window.prompt = () => '2';
+    vm.runInContext(`
+        currentCode = 'EVENT';
+        _detailContext = { participantId: 4, distanceId: 10, shots: [{ shot_number: 1, score: 10, is_x: true }, { shot_number: 2, score: 9, is_x: false }, { shot_number: 3, score: 5, is_x: false }] };
+    `, context);
+    await vm.runInContext('editDetailShot(1)', context);
+    assert.deepEqual(replacements[0].map(shot => [shot.shot_number, shot.score, shot.is_x]), [[1, 9, false], [2, 5, false], [3, 2, false]]);
 });

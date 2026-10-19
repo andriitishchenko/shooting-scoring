@@ -55,6 +55,14 @@ test("CORS allows only the listed origins", async (t) => {
   assert.equal((await fetch(`${base}/api/health`, { method: "OPTIONS" })).status, 405);
 });
 
+test("CORS lets a listed origin read the Retry-After header", async (t) => {
+  const { base } = await startApp(t, { origins: ["https://allowed.example"] });
+  const answer = await fetch(`${base}/api/health`, { headers: { Origin: "https://allowed.example" } });
+  assert.match(answer.headers.get("access-control-expose-headers") ?? "", /Retry-After/);
+  const other = await fetch(`${base}/api/health`, { headers: { Origin: "https://evil.example" } });
+  assert.equal(other.headers.get("access-control-expose-headers"), null);
+});
+
 test("the default CORS setting allows no other origin", async (t) => {
   const { base } = await startApp(t);
   const answer = await fetch(`${base}/api/health`, { headers: { Origin: "https://other.example" } });

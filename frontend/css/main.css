@@ -26,6 +26,7 @@ html, body {
 /* Screen management */
 .screen {
     min-height: 100vh;
+    min-height: 100dvh; /* the visible height on a phone, without the browser bars */
 }
 
 .screen.hidden , .hidden{
@@ -133,6 +134,12 @@ h3 {
 .btn-warning {
     background: var(--warning);
     color: white;
+}
+
+/* A phone browser needs this to let the user type in a field */
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
 }
 
 /* Input styles */

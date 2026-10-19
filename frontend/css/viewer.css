@@ -280,3 +280,10 @@
     flex-shrink: 0;
     margin-left: auto;
 }
+
+/* A narrow screen: the switch goes under the Exit button, and the list starts lower. */
+@media (max-width: 640px) {
+    .viewer-exit-btn { top: 8px; right: 8px; padding: 8px 14px; font-size: 14px; }
+    .viewer-scroll-switch { top: 56px; right: 8px; padding: 6px 12px; font-size: 14px; }
+    .leaderboard-container { padding-top: 104px; }
+}

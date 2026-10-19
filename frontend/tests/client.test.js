@@ -20,6 +20,7 @@ function clientContext() {
         async getParticipantState() { return structuredClone(data.state); },
         async replaceDistanceResults(code, participantId, distanceId, shots) { data.saves.push({ code, participantId, distanceId, shots: plain(shots) }); },
     };
+    browser.load('scoring.js');
     browser.load('client.js');
     browser.storage.saveLaneSession(1, 'lane-token');
     browser.storage.saveLane(1);
@@ -123,7 +124,7 @@ test('deletions replace the complete distance, including an empty distance', asy
     assert.deepEqual(b.data.saves.map(save => save.shots.map(shot => shot.shot_number)), [[1], []]);
 });
 
-test('shot buttons keep shot order and clear the score that is shown', async () => {
+test('shot buttons show the shots as they are, and a cleared score is removed, the rest is ordered', async () => {
     const b = clientContext();
     b.run(`results = [8, 10, 9].map((score, index) => ({ participant_id: 4, distance_id: 7, shot: index + 1, score, is_x: false })); renderScoreGrid();`);
     const buttons = b.document.querySelectorAll('.shot-btn');
@@ -131,8 +132,8 @@ test('shot buttons keep shot order and clear the score that is shown', async () 
     b.context.clicked = buttons[1];
     b.run('selectShot(1, 2, { currentTarget: clicked }); selectShot(1, 2, { currentTarget: clicked });');
     await tick();
-    assert.deepEqual(plain(b.run('results.map(result => result.shot)')), [1, 3]);
-    assert.deepEqual(b.data.saves[0].shots.map(shot => shot.score), [8, 9]);
+    assert.deepEqual(plain(b.run('results.map(result => result.shot)')), [1, 2]);
+    assert.deepEqual(b.data.saves[0].shots.map(shot => shot.score), [9, 8]);
 });
 
 test('a filled series can be corrected without changing another shot', async () => {
@@ -141,7 +142,80 @@ test('a filled series can be corrected without changing another shot', async () 
     b.context.clicked = b.document.querySelectorAll('.shot-btn')[1];
     b.run('selectShot(1, 2, { currentTarget: clicked }); inputScore(7);');
     await tick();
-    assert.deepEqual(b.data.saves[0].shots.sort((a, b) => a.shot_number - b.shot_number).map(shot => shot.score), [8, 7, 9]);
+    assert.deepEqual(b.data.saves[0].shots.sort((a, b) => a.shot_number - b.shot_number).map(shot => shot.score), [9, 8, 7]);
+});
+
+// ── The shots of a series are ordered from the highest to the lowest ────────
+function distanceOf(b, count) {
+    b.run(`distances = [{ id: 7, status: 'active', shots_count: ${count} }]; results = []; _currentShot = null; _lastEntry = null; renderScoreGrid();`);
+}
+const shown = b => b.document.querySelectorAll('.shot-btn').map(button => String(button.textContent));
+
+test('each series shows its shots from the highest to the lowest while the user enters them', async () => {
+    const b = clientContext();
+    distanceOf(b, 6);
+    for (const [score, isX] of [[5, false], [9, false], [10, false], [0, false], [2, false], [5, false]]) b.run(`inputScore(${score}, ${isX})`);
+    await tick();
+    assert.deepEqual(shown(b), ['10', '9', '5', '5', '2', '0']);
+    assert.deepEqual(plain(b.run('results.map(result => result.shot + ":" + result.score)')), ['1:10', '2:9', '3:5', '4:5', '5:2', '6:0']);
+});
+
+test('an X is shown before the 10s of its series', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run('inputScore(10, false); inputScore(10, false); inputScore(10, true);');
+    await tick();
+    assert.deepEqual(shown(b), ['X', '10', '10']);
+});
+
+test('the saved shots are in the same order as the shots on the screen', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run('inputScore(3); inputScore(8); inputScore(6);');
+    await tick();
+    const last = b.data.saves.at(-1);
+    assert.deepEqual(last.shots.map(item => [item.shot_number, item.score]), [[1, 8], [2, 6], [3, 3]]);
+});
+
+test('a score that the user clears makes the next shots move up, so the series has no gap', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run('inputScore(9); inputScore(7); inputScore(5);');
+    b.context.clicked = b.document.querySelectorAll('.shot-btn')[0];
+    b.run('selectShot(1, 1, { currentTarget: clicked }); selectShot(1, 1, { currentTarget: clicked });');
+    await tick();
+    assert.deepEqual(plain(b.run('results.map(result => result.shot + ":" + result.score)')), ['1:7', '2:5']);
+    assert.deepEqual(shown(b), ['7', '5', '']);
+    b.run('inputScore(8)');
+    assert.deepEqual(shown(b), ['8', '7', '5']);
+});
+
+test('the delete button removes the shot that the user entered last', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run('inputScore(9); inputScore(10);'); // The user meant 9 and then made a mistake with the 10.
+    await b.run('deleteLastScore()');
+    assert.deepEqual(plain(b.run('results.map(result => result.score)')), [9]);
+    assert.deepEqual(shown(b), ['9', '', '']);
+    assert.equal(b.get('total-score').textContent, 9);
+});
+
+test('the delete button works again after the first delete, and with no shot entered in this session', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run(`results = [10, 9, 5].map((score, index) => ({ participant_id: 4, distance_id: 7, shot: index + 1, score, is_x: false })); renderScoreGrid();`);
+    await b.run('deleteLastScore()');
+    assert.deepEqual(plain(b.run('results.map(result => result.score)')), [10, 9]);
+    await b.run('deleteLastScore()');
+    await b.run('deleteLastScore()');
+    assert.deepEqual(plain(b.run('results')), []);
+});
+
+test('the shots that the server keeps in another order are shown in order when the user opens them', async () => {
+    const b = clientContext();
+    b.data.state.distances[0].shots = [{ shot: 1, score: 5, is_x: false }, { shot: 2, score: 10, is_x: true }, { shot: 3, score: 9, is_x: false }];
+    await b.run('openScoreInput(4)');
+    assert.deepEqual(shown(b), ['X', '9', '5']);
 });
 
 test('a failed event load stops entry and does not save the event code', async () => {
@@ -570,4 +644,41 @@ test('the count of a series that was cleared offline is zero', () => {
     const merged = b.run(`_mergePendingResults(4, { distances: [{ distance_id: 8, status: 'active', total_score: 19, shots_taken: 2, shots: [{ shot: 1, score: 10, is_x: true }] }] })`);
     assert.equal(merged.distances[0].shots_taken, 0);
     assert.equal(merged.distances[0].total_score, null);
+});
+
+// ── Shots that come from the server are shown in order ──────────────────────
+test('shots from a live update of the server are shown in order', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.data.state.distances[0].shots = [{ shot: 1, score: 5, is_x: false }, { shot: 2, score: 10, is_x: true }, { shot: 3, score: 9, is_x: false }];
+    await b.run('_refreshParticipantState(4, _context())');
+    assert.deepEqual(shown(b), ['X', '9', '5']);
+    assert.deepEqual(plain(b.run('results.map(result => result.shot + ":" + result.score)')), ['1:10', '2:9', '3:5']);
+});
+
+test('the same live update does not draw the grid again when nothing changed', async () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.data.state.distances[0].shots = [{ shot: 1, score: 5, is_x: false }, { shot: 2, score: 10, is_x: false }];
+    await b.run('_refreshParticipantState(4, _context())');
+    const first = b.document.querySelectorAll('.shot-btn');
+    await b.run('_refreshParticipantState(4, _context())');
+    assert.equal(b.document.querySelectorAll('.shot-btn')[0], first[0]);
+});
+
+test('shots in the saved state are shown in order after a reconnect', async () => {
+    const b = clientContext();
+    b.data.state.distances[0].shots = [{ shot: 1, score: 2, is_x: false }, { shot: 2, score: 8, is_x: false }, { shot: 3, score: 6, is_x: false }];
+    await b.run('_reconcile()');
+    assert.deepEqual(shown(b), ['8', '6', '2']);
+});
+
+test('clearing a shot removes the hint of the delete button', () => {
+    const b = clientContext();
+    distanceOf(b, 3);
+    b.run('inputScore(9); inputScore(9);');
+    assert.deepEqual(plain(b.run('_lastEntry')), { score: 9, is_x: false });
+    b.context.clicked = b.document.querySelectorAll('.shot-btn')[0];
+    b.run('selectShot(1, 1, { currentTarget: clicked }); selectShot(1, 1, { currentTarget: clicked });');
+    assert.equal(b.run('_lastEntry'), null);
 });

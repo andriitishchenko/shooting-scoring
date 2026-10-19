@@ -112,7 +112,6 @@ function _bindClientControls() {
         'continue-password': proceedAfterPassword,
         'submit-password': submitLanePassword,
         'request-reset': requestLaneReset,
-        'cancel-reset': cancelLaneReset,
         'add-participant': showAddParticipant,
         'cancel-participant': hideAddParticipant,
         'back-participants': backToParticipants,
@@ -313,10 +312,9 @@ function _showLaneAuthScreen(laneNumber) {
 let resetWatch = null;       // { context, lane, id, timer } while a request waits
 let resetRequesting = false; // the request is on its way
 
-// `idle`: the button shows (with a message). `waiting`: the status and the cancel button show.
+// `idle`: the button shows (with a message). `waiting`: the status shows.
 function _setResetState(mode, message = '') {
     document.getElementById('lane-reset-btn').classList.toggle('hidden', mode === 'waiting');
-    document.getElementById('lane-reset-cancel').classList.toggle('hidden', mode !== 'waiting');
     const status = document.getElementById('lane-reset-status');
     status.textContent = message;
     status.classList.toggle('hidden', !message);
@@ -372,19 +370,15 @@ async function requestLaneReset() {
     _setResetState('idle', 'Sending the request…');
     try {
         const result = await api.requestLaneReset(context.code, lane);
-        if (!_isCurrent(context)) return;
+        // Save the request also when the user left the screen. The page continues to wait when the lane opens again.
         AppStorage.saveResetRequest(context.code, lane, result.request_id);
+        if (!_isCurrent(context)) return;
         _watchReset(context, lane, result.request_id);
     } catch (error) {
         if (_isCurrent(context)) _setResetState('idle', error.message);
     } finally {
         resetRequesting = false;
     }
-}
-
-function cancelLaneReset() {
-    _stopResetWatch(true);
-    _setResetState('idle');
 }
 
 async function submitLanePassword() {
@@ -474,7 +468,7 @@ function _reconcile() {
         }
         participantState = AppStorage.getParticipantState(participantId) || participantState;
         const state = participantState?.distances.find(distance => distance.distance_id === distanceId);
-        if (state && scoreVersion === _scoreVersion(context.code, participantId)) results = state.shots.map(shot => ({ participant_id: participantId, distance_id: distanceId, ...shot }));
+        if (state && scoreVersion === _scoreVersion(context.code, participantId)) results = sortSeries(state.shots.map(shot => ({ participant_id: participantId, distance_id: distanceId, ...shot })));
         renderScoreGrid();
         updateTotalScore();
     });
@@ -500,7 +494,7 @@ async function _refreshParticipantState(participantId, context) {
         participantState = merged;
         const active = merged.distances.find(distance => distance.distance_id === currentDistanceId);
         if (active?.status === 'active') {
-            const shots = active.shots.map(shot => ({ participant_id: participantId, distance_id: currentDistanceId, ...shot }));
+            const shots = sortSeries(active.shots.map(shot => ({ participant_id: participantId, distance_id: currentDistanceId, ...shot })));
             if (_shotKey(shots) !== _shotKey(results)) {
                 results = shots;
                 renderScoreGrid();
@@ -738,6 +732,8 @@ async function openScoreInput(participantId) {
         score:          s.score,
         is_x:           s.is_x
     })) : [];
+    results = sortSeries(results);
+    _lastEntry = null;
 
     _showScreen('score-screen');
     document.getElementById('participant-name').textContent = currentParticipant.name;
@@ -793,6 +789,7 @@ function renderScoreGrid() {
 }
 
 let _currentShot = null;
+let _lastEntry   = null; // the value that the user entered last, for the delete button
 
 function _scoresEditable() {
     if (eventData?.status === 'started') return true;
@@ -808,7 +805,8 @@ function selectShot(series, shot, ev) {
     if (exist && btn.classList.contains('selected')) {
         if (!_scoresEditable()) return;
         if (confirm('Clear this score?')) {
-            results = results.filter(r => r.shot !== shotNum);
+            results = sortSeries(results.filter(r => r.shot !== shotNum));
+            _lastEntry = null;
             renderScoreGrid();
             updateTotalScore();
             _saveCurrentResults();
@@ -841,19 +839,16 @@ function inputScore(score, isX = false) {
     }
 
     if (!_currentShot) _currentShot = next;
-    const { series, shot, shotNum } = _currentShot;
+    const { shotNum } = _currentShot;
 
     results = results.filter(r => r.shot !== shotNum);
     results.push({ participant_id: currentParticipant.id, distance_id: ad.id, shot: shotNum, score, is_x: isX });
+    // The shots of a series are in order from the highest to the lowest, so a new shot can move.
+    results = sortSeries(results);
+    _lastEntry = { score, is_x: isX };
 
-    const b = document.querySelector(`[data-series="${series}"][data-shot="${shot}"]`);
-    if (b) { b.textContent = isX ? 'X' : score; b.classList.add('filled'); b.classList.remove('selected'); }
-
+    renderScoreGrid();
     updateTotalScore();
-    _updateSeriesTotal(series);
-
-    const seriesCount = results.filter(r => Math.ceil(r.shot / CONFIG.SERIES_SIZE) === series).length;
-    if (seriesCount === CONFIG.SERIES_SIZE) renderScoreGrid();
     _saveCurrentResults();
 
     _currentShot = _findNextEmpty();
@@ -902,47 +897,19 @@ async function deleteLastScore() {
     if (!results.length) return;
     if (!_scoresEditable()) return;
 
-    // Find the highest shot number currently filled
-    const maxShot = Math.max(...results.map(r => r.shot));
-    results = results.filter(r => r.shot !== maxShot);
+    // Remove the shot that the user entered last. The series stays in order.
+    results = removeLastShot(results, _lastEntry);
+    _lastEntry = null;
 
-    // Determine which series it belonged to
-    const series = Math.ceil(maxShot / CONFIG.SERIES_SIZE);
-    const shot   = maxShot - (series - 1) * CONFIG.SERIES_SIZE;
-
-    // Clear the visual slot
-    const btn = document.querySelector(`[data-series="${series}"][data-shot="${shot}"]`);
-    if (btn) {
-        btn.textContent = '';
-        btn.classList.remove('filled', 'selected');
-    }
-
+    // Show the grid, and select the first empty slot
+    renderScoreGrid();
     updateTotalScore();
-    _updateSeriesTotal(series);
-
-    // Set focus to the now-empty slot
-    _currentShot = { series, shot, shotNum: maxShot };
-    document.querySelectorAll('.shot-btn').forEach(b => b.classList.remove('selected'));
-    if (btn) {
-        btn.classList.add('selected');
-        _scrollToSeries(series);
-    }
 
     await _saveCurrentResults();
 }
 
-function _seriesScore(s) {
-    return results.filter(r => Math.ceil(r.shot / CONFIG.SERIES_SIZE) === s).reduce((acc, r) => acc + r.score, 0);
-}
-
-function _cumScore(upTo) {
-    return results.filter(r => r.shot <= upTo * CONFIG.SERIES_SIZE).reduce((acc, r) => acc + r.score, 0);
-}
-
-function _updateSeriesTotal(s) {
-    const el = document.querySelector(`#series-${s} .series-total`);
-    if (el) el.innerHTML = `${_seriesScore(s)}<br>${_cumScore(s)}`;
-}
+const _seriesScore = s => seriesScore(results, s);
+const _cumScore    = upTo => cumScore(results, upTo);
 
 function updateTotalScore() {
     let total = results.reduce((a, r) => a + r.score, 0);

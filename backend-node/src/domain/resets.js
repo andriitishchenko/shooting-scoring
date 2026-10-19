@@ -30,7 +30,7 @@ export function createLaneResets({ sessions, hasher, throttle, ttlMs, now = Date
       sweep();
       if (!db.get("SELECT 1 AS found FROM lanes WHERE lane = ?", lane))
         fail(409, "This lane has no password yet. Open the lane to get one.");
-      throttle.reserve("reset", String(lane), address);
+      throttle.reserve("reset", `${db.code}:${lane}`, address);
       const id = newToken();
       entries.set(keyOf(db.code, lane), { idHash: hashToken(id), createdAt: now(), status: "pending" });
       db.notify({ type: "lane_reset_requested", lane_number: lane });

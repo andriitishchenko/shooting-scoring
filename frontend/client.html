@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Client - Score Entry</title>
     <link rel="stylesheet" href="css/reset.css">
@@ -61,9 +61,8 @@
                autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:0.2em;">
         <div id="lane-pw-error" class="error-banner hidden"></div>
         <button class="btn btn-primary" data-action="submit-password">Enter</button>
-        <button class="btn btn-secondary" id="lane-reset-btn" data-action="request-reset">Forgot the password? Ask the host to reset it</button>
+        <button class="btn btn-secondary" id="lane-reset-btn" data-action="request-reset">Request password</button>
         <p id="lane-reset-status" class="lane-reset-status hidden" role="status" aria-live="polite"></p>
-        <button class="btn hidden" id="lane-reset-cancel" data-action="cancel-reset">Cancel the request</button>
         <button class="btn" data-action="back-lane">← Back to Lanes</button>
     </div>
 </div>
@@ -138,6 +137,7 @@
 <script src="js/api.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/websocket.js"></script>
+<script src="js/scoring.js"></script>
 <script src="js/client.js"></script>
 </body>
 </html>

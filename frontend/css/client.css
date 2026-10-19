@@ -31,6 +31,7 @@
     justify-content: space-between;
     align-items: center;
     padding: var(--spacing-md);
+    padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
     background: white;
     box-shadow: var(--shadow-md);
     position: sticky;
@@ -159,6 +160,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh; /* the visible height on a phone, without the browser bars */
     overflow: hidden;
     background: var(--gray-50);
 }
@@ -247,6 +249,7 @@
     grid-template-columns: repeat(5, 1fr);
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
+    padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
     background: white;
     box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
     position: sticky;
@@ -283,6 +286,8 @@
     border: 2px solid #444;
 }
 .score-btn.delete-btn:active { background: #111; }
+/* The delete button fills the last row, so that it is easy to hit */
+.score-btn.delete-btn { grid-column: span 3; }
 
 /* ── Distance summary tags ─────────────────────────────────────────────── */
 .participant-dist-summary { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
@@ -296,10 +301,36 @@
 .viewer-pw-container { max-width: 480px; }
 .viewer-pw-hint { color: var(--gray-600); margin-bottom: var(--spacing-lg); }
 
+/* ── Phone: small screens and landscape ────────────────────────────────── */
+@media (max-width: 360px) {
+    .series-row { grid-template-columns: 24px repeat(3, 1fr) 64px; }
+    .shot-btn { padding: var(--spacing-sm); }
+    .series-total { font-size: var(--font-sm); padding-right: 2px; }
+    .score-header { gap: var(--spacing-sm); }
+    .score-header h2 { font-size: var(--font-base); }
+    .score-header .btn { padding: var(--spacing-sm); }
+    .score-buttons { gap: 6px; padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+    .score-btn { font-size: var(--font-lg); min-height: 52px; }
+}
+
+/* A phone in landscape has little height: the buttons use 2 rows. */
+@media (max-height: 520px) and (orientation: landscape) {
+    .score-buttons { grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 6px 8px; }
+    .score-btn { min-height: 40px; padding: 4px; font-size: var(--font-lg); border-radius: var(--radius-md); }
+    .score-btn.delete-btn { grid-column: span 2; }
+    .score-header { padding: 4px var(--spacing-md); }
+    .score-header h2 { font-size: var(--font-lg); margin: 0; }
+    .score-header #total-score { font-size: var(--font-2xl); line-height: 1.1; }
+    .score-header-total { flex-direction: row; align-items: baseline; gap: var(--spacing-sm); }
+    .score-grid { padding: 6px var(--spacing-md); }
+    .series-row { margin-bottom: 4px; padding: 4px; }
+    .shot-btn { min-height: 38px; font-size: var(--font-lg); padding: 4px; }
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-    .score-buttons { grid-template-columns: repeat(4, 1fr); }
-    .score-btn { font-size: var(--font-xl); min-height: 60px; padding: var(--spacing-md); }
+    .score-buttons { grid-template-columns: repeat(5, 1fr); }
+    .score-btn { font-size: var(--font-xl); min-height: 56px; padding: var(--spacing-sm); }
     .series-row { grid-template-columns: 30px repeat(3, 1fr) 80px; gap: 4px; }
     .shot-btn { min-height: 50px; font-size: var(--font-lg); }
 }
@@ -310,3 +341,12 @@
 .client-notices .btn { margin-bottom: var(--spacing-sm); }
 
 .lane-reset-status { margin: var(--spacing-sm) 0; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-sm, 6px); background: #eef4ff; color: #274c99; font-size: 0.9rem; }
+
+/* ── Practice page ──────────────────────────────────────────────────────── */
+.practice-hint { text-align: center; color: var(--gray-600); margin-bottom: var(--spacing-lg); }
+.practice-actions { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.practice-actions .btn { width: 100%; min-height: 52px; }
+.practice-label { display: block; margin-bottom: var(--spacing-sm); font-weight: 600; }
+.practice-info { font-size: .75rem; color: var(--gray-600); text-align: right; }
+.practice-note { color: var(--danger, #c62828); font-size: .75rem; }
+#practice-status { color: var(--muted); font-size: .75rem; }

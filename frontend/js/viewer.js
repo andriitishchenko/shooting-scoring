@@ -123,6 +123,9 @@ async function _enterViewer(code, sessionId) {
     _clearTimers();
     await _loadAndRender();
     if (currentCode !== code) return;
+    // A second entry can finish its load first. Stop its timer and its socket before you start new ones.
+    clearInterval(refreshInterval);
+    if (socket) socket.disconnect();
     refreshInterval = setInterval(() => _loadAndRender(), 2 * 60 * 1000);
     _connectLive(code, sessionId);
     startAutoScroll();

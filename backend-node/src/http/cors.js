@@ -1,5 +1,8 @@
 const METHODS = "GET, POST, PUT, PATCH, DELETE";
 const HEADERS = "Content-Type, X-Session-Id";
+// The browser shows these answer headers to a page on another origin.
+// The pages read `Retry-After` to show the waiting time.
+const EXPOSED = "Retry-After";
 
 // Answer a CORS preflight request. Return true when the request is complete.
 // The server allows only the origins in the list. The browser app uses the same origin.
@@ -23,6 +26,9 @@ export function cors(req, res, origins) {
     res.end();
     return true;
   }
-  if (allowed) res.setHeader("Access-Control-Allow-Origin", origin);
+  if (allowed) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Expose-Headers", EXPOSED);
+  }
   return false;
 }

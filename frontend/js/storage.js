@@ -40,6 +40,28 @@ class AppStorage {
     static getViewerSession()           { return this.get('viewer_session_id'); }
     static clearViewerSession()         { this.remove('viewer_session_id'); }
 
+    // ── Practice list (the practice page works without a server) ───────────
+    // The saved list is `{ shots, results: [{ shot, score, is_x }] }`. Return null
+    // when nothing is saved or the saved data is not valid.
+    static savePractice(session)        { return this.set('practice_session', session); }
+    static clearPractice()              { this.remove('practice_session'); }
+    static getPractice() {
+        const saved = this.get('practice_session');
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return null;
+        const { shots, results } = saved;
+        if (!Number.isInteger(shots) || shots < 1 || shots > 300 || !Array.isArray(results)) return null;
+        const used = new Set();
+        for (const item of results) {
+            if (!item || typeof item !== 'object') return null;
+            const { shot, score, is_x } = item;
+            if (!Number.isInteger(shot) || shot < 1 || shot > shots || used.has(shot)) return null;
+            if (!Number.isInteger(score) || score < 0 || score > 10 || typeof is_x !== 'boolean') return null;
+            if (is_x && score !== 10) return null;
+            used.add(shot);
+        }
+        return { shots, results: results.map(({ shot, score, is_x }) => ({ shot, score, is_x })) };
+    }
+
     // ── Viewer auto-scroll switch (on unless the saved value is exactly false) ─
     static saveViewerAutoScroll(on)     { this.set('viewer_autoscroll', Boolean(on)); }
     static getViewerAutoScroll()        { return this.get('viewer_autoscroll') !== false; }

@@ -137,6 +137,7 @@ function clientContext(overrides = {}) {
         ...overrides,
     };
     b.context.WSClient = class { constructor(code, session) { this.session = session; globalThis.__last = this; } on() {} connect() { this.connected = true; } disconnect() { this.stopped = true; } };
+    b.load('scoring.js');
     b.load('client.js');
     b.run(`currentCode = 'EVENT1'; currentLane = 3; _showLaneAuthScreen(3);`);
     return { b, calls, script };
@@ -147,7 +148,6 @@ test('the password screen offers to ask the host for a reset', () => {
     const { b } = clientContext();
     assert.equal(b.visible(), 'lane-auth-screen');
     assert.equal(visible(b, 'lane-reset-btn'), true);
-    assert.equal(visible(b, 'lane-reset-cancel'), false);
     assert.equal(visible(b, 'lane-reset-status'), false);
 });
 
@@ -157,9 +157,8 @@ test('asking sends one request, saves the secret id, and shows the waiting state
     assert.equal(calls.request, 1);
     assert.equal(b.storage.getResetRequest('EVENT1', 3), 'secret-id-value');
     assert.equal(visible(b, 'lane-reset-btn'), false);
-    assert.equal(visible(b, 'lane-reset-cancel'), true);
     assert.match(b.get('lane-reset-status').textContent, /Waiting for the host/);
-    b.run('cancelLaneReset()');
+    b.run('_stopResetWatch(true)');
 });
 
 test('the page asks for the result until the host decides', async () => {
@@ -170,7 +169,7 @@ test('the page asks for the result until the host decides', async () => {
     assert.ok(calls.status.length >= 3, `status calls: ${calls.status.length}`);
     assert.deepEqual(calls.status[0], ['EVENT1', 3, 'secret-id-value']);
     assert.equal(b.visible(), 'lane-auth-screen');
-    b.run('cancelLaneReset()');
+    b.run('_stopResetWatch(true)');
 });
 
 test('an approval shows the new password like the first entry to a lane', async () => {
@@ -194,7 +193,6 @@ test('a denial is reported, the request is forgotten, and the page can ask again
     assert.equal(b.visible(), 'lane-auth-screen');
     assert.match(b.get('lane-reset-status').textContent, /host denied/i);
     assert.equal(visible(b, 'lane-reset-btn'), true);
-    assert.equal(visible(b, 'lane-reset-cancel'), false);
     assert.equal(b.storage.getResetRequest('EVENT1', 3), null);
     const polled = calls.status.length;
     await wait(60);
@@ -236,20 +234,6 @@ test('a request that fails shows the reason and the page can ask again', async (
     }
 });
 
-test('cancelling stops the asking, forgets the request, and shows the button', async () => {
-    const { b, calls } = clientContext();
-    await b.run('requestLaneReset()');
-    await wait(30);
-    b.run('cancelLaneReset()');
-    const polled = calls.status.length;
-    await wait(60);
-    assert.equal(calls.status.length, polled);
-    assert.equal(b.storage.getResetRequest('EVENT1', 3), null);
-    assert.equal(visible(b, 'lane-reset-btn'), true);
-    assert.equal(visible(b, 'lane-reset-cancel'), false);
-    assert.equal(visible(b, 'lane-reset-status'), false);
-});
-
 test('a page that opens again continues to wait for a saved request', async () => {
     const { b, calls, script } = clientContext();
     b.storage.saveResetRequest('EVENT1', 3, 'saved-secret-id');
@@ -283,6 +267,23 @@ test('leaving the password screen stops the asking but keeps the request for lat
     assert.equal(b.storage.getResetRequest('EVENT1', 3), 'secret-id-value');
 });
 
+test('a request that is answered after the user left the password screen is kept for later', async () => {
+    const gate = deferred();
+    const { b, calls } = clientContext({ async requestLaneReset() { await gate.promise; return { request_id: 'late-secret-id', status: 'pending' }; } });
+    const sending = b.run('requestLaneReset()');
+    b.run('backToLane()');
+    gate.resolve();
+    await sending;
+    assert.equal(b.storage.getResetRequest('EVENT1', 3), 'late-secret-id');
+    await wait(40);
+    assert.equal(calls.status.length, 0);
+    assert.equal(b.visible(), 'lane-screen');
+    b.run(`currentLane = 3; _showLaneAuthScreen(3)`);
+    await wait(40);
+    assert.equal(calls.status[0][2], 'late-secret-id');
+    b.run('_stopResetWatch(true)');
+});
+
 test('an approval that arrives after the user went to another lane does not take over the page', async () => {
     const gate = deferred();
     const { b } = clientContext({ async laneResetStatus() { await gate.promise; return { status: 'approved', session_id: 'late', password: 'LATE11', lane_number: 3 }; } });
@@ -303,8 +304,8 @@ test('the buttons on the password screen are connected to the actions', async ()
     click(fake('request-reset'));
     await wait(30);
     assert.equal(calls.request, 1);
-    click(fake('cancel-reset'));
-    assert.equal(visible(b, 'lane-reset-btn'), true);
+    assert.equal(visible(b, 'lane-reset-btn'), false);
+    b.run('_stopResetWatch(true)');
 });
 
 test('the storage keeps a request for each event and lane', () => {
