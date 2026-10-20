@@ -141,7 +141,7 @@ Shows a grid of shot slots organised in series of 3.
 - Tap an **empty slot** to select it (highlighted in blue).
 - Tap a **score button** (M, 1–10, X) to record the score. The slot fills, the series total and cumulative total update.
 - Tap a **filled slot** to re-select it, then tap a different score button to correct it. Tap the selected slot again to clear it.
-- The **⌫** button deletes the shot that the user entered last.
+- The **⌫** button deletes the shot that the user entered last. The page remembers the last shot only until it reloads. After a reload, **⌫** deletes the lowest shot of the last series that has shots.
 - Each series shows its shots in order from the highest to the lowest (for example `10 9 5`, `5 2 0`, or `X 10 10`). An X is above a 10. When the user enters or clears a shot, the series is ordered again, and the shots use the first places of the series. Shots that come from the server and corrections of the host (in the results details) follow the same rule.
 - **X** counts as 10 points with the X flag set.
 - **M** counts as 0 (miss).
@@ -184,7 +184,7 @@ the page opens from the saved files. Other pages and the API are not affected.
 
 Open `viewer.html`. Enter the event code and tap **Enter**. If a viewer password is set, a password prompt appears.
 
-The page logs in again from the browser storage after a reload. If the host changes the viewer password, the page asks for the new password.
+The page logs in again from the browser storage after a reload. If the host changes the viewer password, the page asks for the new password. The results stay on the screen while the page logs in again. If the network fails, the page tries again after 3 seconds, then after longer delays up to 30 seconds. No reload is necessary.
 
 ### 4.2 Pre-Competition Roster
 

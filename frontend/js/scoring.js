@@ -1,6 +1,6 @@
 // The rules for the shots of a series. The client and the practice page use them.
 // A shot is `{ shot, score, is_x }`. The shots of a series are in order from the
-// highest to the lowest: X, 10, 9, ... 1, 0.
+// highest to the lowest: X, 10, 9, ... 1, 0. `key` names the field with the shot number.
 
 const _seriesOf = (shot, size) => Math.ceil(shot / size);
 
@@ -9,29 +9,31 @@ const _shotValue = result => (result.is_x ? 11 : result.score);
 
 // A new list. In each series the shots are ordered from the highest to the lowest,
 // and they use the first places of the series. The input list does not change.
-function sortSeries(results, size = CONFIG.SERIES_SIZE) {
+function sortSeries(results, size = CONFIG.SERIES_SIZE, key = 'shot') {
     const bySeries = new Map();
     for (const result of results) {
-        const series = _seriesOf(result.shot, size);
+        const series = _seriesOf(result[key], size);
         if (!bySeries.has(series)) bySeries.set(series, []);
         bySeries.get(series).push(result);
     }
     const sorted = [];
     for (const series of [...bySeries.keys()].sort((a, b) => a - b)) {
         bySeries.get(series)
-            .sort((a, b) => _shotValue(b) - _shotValue(a) || a.shot - b.shot)
-            .forEach((result, index) => sorted.push({ ...result, shot: (series - 1) * size + index + 1 }));
+            .sort((a, b) => _shotValue(b) - _shotValue(a) || a[key] - b[key])
+            .forEach((result, index) => sorted.push({ ...result, [key]: (series - 1) * size + index + 1 }));
     }
     return sorted;
 }
 
-// A new list without the shot that the user entered last. `last` is `{ score, is_x }`
-// or null. Look in the last series that has shots. If no shot has the value of `last`,
-// remove the lowest shot. The series is ordered again.
+// A new list without the shot that the user entered last. `last` is
+// `{ score, is_x, series }` or null. Look in `last.series`. Without `last`, or when that
+// series has no shots, look in the last series that has shots. If no shot has the value
+// of `last`, remove the lowest shot. The series is ordered again.
 function removeLastShot(results, last, size = CONFIG.SERIES_SIZE) {
     if (!results.length) return [];
-    const lastSeries = _seriesOf(Math.max(...results.map(result => result.shot)), size);
-    const inSeries = results.filter(result => _seriesOf(result.shot, size) === lastSeries);
+    const inSeriesOf = series => results.filter(result => _seriesOf(result.shot, size) === series);
+    let inSeries = last?.series ? inSeriesOf(last.series) : [];
+    if (!inSeries.length) inSeries = inSeriesOf(_seriesOf(Math.max(...results.map(result => result.shot)), size));
     const match = last && inSeries.filter(result => result.score === last.score && Boolean(result.is_x) === Boolean(last.is_x));
     const target = (match?.length ? match : inSeries).reduce((best, result) => (result.shot > best.shot ? result : best));
     return sortSeries(results.filter(result => result !== target), size);

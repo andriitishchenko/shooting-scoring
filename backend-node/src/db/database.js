@@ -59,6 +59,7 @@ export class Database {
     } catch (error) {
       this.depth = 0;
       this.hooks.length = 0;
+      this.memo.clear(); // A cached value can hold the rolled back data.
       try {
         this.connection.exec("ROLLBACK");
       } catch {

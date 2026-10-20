@@ -61,7 +61,8 @@ test("a socket that does not authenticate in time is closed", async (t) => {
   const { base, event } = await runningEvent(t, { authTimeoutMs: 100 });
   const socket = await connectSocket(base, event.code);
   t.after(() => socket.terminate());
-  assert.equal(await socket.closed, 1008);
+  // Not 1008: the client must not take a slow start for a rejected session.
+  assert.equal(await socket.closed, 4002);
 });
 
 test("a large first message closes the socket", async (t) => {

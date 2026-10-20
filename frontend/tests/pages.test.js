@@ -299,6 +299,53 @@ test('the viewer closes the socket on exit and asks for a password when the sess
     assert.equal(timers.pending.size, 0);
 });
 
+test('the viewer tries to log in again after a network error, and keeps the results', async () => {
+    let logins = 0;
+    const { b, sockets, timers } = viewerContext({
+        async viewerLogin() { logins++; if (logins < 3) throw new Error('Failed to fetch'); return { ok: true, session_id: 'again' }; },
+    });
+    await b.run(`_enterViewer('ABC123', 'viewer-token')`);
+    const [socket] = sockets;
+    await socket.handlers.session_rejected({ type: 'session_rejected' });
+    assert.equal(socket.stopped, true);
+    assert.equal(logins, 1);
+    assert.equal(b.get('results-screen').classList.contains('hidden'), false);
+    assert.equal(timers.count(timer => !timer.interval && timer.ms === 3000), 1);
+    await timers.fire(timer => timer.ms === 3000);
+    assert.equal(logins, 2);
+    assert.equal(timers.count(timer => !timer.interval && timer.ms === 6000), 1);
+    await timers.fire(timer => timer.ms === 6000);
+    assert.equal(logins, 3);
+    assert.equal(sockets.length, 2);
+    b.run('exitViewer(true)');
+    assert.equal(timers.pending.size, 0);
+});
+
+test('the viewer asks for the new password when the login is refused, and stops trying when the user leaves', async () => {
+    const { b, sockets, timers } = viewerContext({
+        async viewerLogin() { const error = new Error('Invalid viewer password'); error.status = 401; throw error; },
+    });
+    await b.run(`_enterViewer('ABC123', 'viewer-token')`);
+    await sockets[0].handlers.session_rejected({ type: 'session_rejected' });
+    assert.equal(b.get('viewer-pw-screen').classList.contains('hidden'), false);
+    assert.equal(timers.count(timer => !timer.interval && timer.ms === 3000), 0);
+
+    const second = viewerContext({ async viewerLogin() { throw new Error('Failed to fetch'); } });
+    await second.b.run(`_enterViewer('ABC123', 'viewer-token')`);
+    await second.sockets[0].handlers.session_rejected({ type: 'session_rejected' });
+    second.b.run('exitViewer(true)');
+    assert.equal(second.timers.pending.size, 0);
+});
+
+test('the host can set the shots of a distance up to 300, and a long distance is not cut to 200', async () => {
+    const saved = [];
+    const { b } = hostContext({ async updateDistance(code, id, data) { saved.push(data.shots_count); return {}; } });
+    b.run(`currentDistances = [{ id: 7, title: 'D', shots_count: 250, status: 'pending' }, { id: 8, title: 'E', shots_count: 300, status: 'pending' }]`);
+    await b.run('changeShots(7, 1)');
+    await b.run('changeShots(8, 1)');
+    assert.deepEqual(saved, [251]);
+});
+
 test('the host page follows the event and distance changes of another admin device', async () => {
     let events = 0, distances = 0;
     const { b, timers } = hostContext({

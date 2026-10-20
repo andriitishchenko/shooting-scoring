@@ -468,7 +468,12 @@ function _reconcile() {
         }
         participantState = AppStorage.getParticipantState(participantId) || participantState;
         const state = participantState?.distances.find(distance => distance.distance_id === distanceId);
-        if (state && scoreVersion === _scoreVersion(context.code, participantId)) results = sortSeries(state.shots.map(shot => ({ participant_id: participantId, distance_id: distanceId, ...shot })));
+        if (state && scoreVersion === _scoreVersion(context.code, participantId)) {
+            const shots = sortSeries(state.shots.map(shot => ({ participant_id: participantId, distance_id: distanceId, ...shot })));
+            // Other shots than the shots of this device: the hint of the delete button is old.
+            if (_shotKey(shots) !== _shotKey(results)) _lastEntry = null;
+            results = shots;
+        }
         renderScoreGrid();
         updateTotalScore();
     });
@@ -497,6 +502,7 @@ async function _refreshParticipantState(participantId, context) {
             const shots = sortSeries(active.shots.map(shot => ({ participant_id: participantId, distance_id: currentDistanceId, ...shot })));
             if (_shotKey(shots) !== _shotKey(results)) {
                 results = shots;
+                _lastEntry = null;
                 renderScoreGrid();
             }
         }
@@ -535,7 +541,7 @@ function downloadPendingRecovery() {
     link.href = url;
     link.download = 'unsent-scores.json';
     link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function _archivePending(record, reason, message) {
@@ -789,7 +795,7 @@ function renderScoreGrid() {
 }
 
 let _currentShot = null;
-let _lastEntry   = null; // the value that the user entered last, for the delete button
+let _lastEntry   = null; // the value and series that the user entered last, for the delete button
 
 function _scoresEditable() {
     if (eventData?.status === 'started') return true;
@@ -839,13 +845,13 @@ function inputScore(score, isX = false) {
     }
 
     if (!_currentShot) _currentShot = next;
-    const { shotNum } = _currentShot;
+    const { shotNum, series } = _currentShot;
 
     results = results.filter(r => r.shot !== shotNum);
     results.push({ participant_id: currentParticipant.id, distance_id: ad.id, shot: shotNum, score, is_x: isX });
     // The shots of a series are in order from the highest to the lowest, so a new shot can move.
     results = sortSeries(results);
-    _lastEntry = { score, is_x: isX };
+    _lastEntry = { score, is_x: isX, series };
 
     renderScoreGrid();
     updateTotalScore();

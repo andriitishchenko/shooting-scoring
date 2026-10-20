@@ -76,6 +76,21 @@ test('removing the last shot works in the last series that has shots, and with a
     assert.deepEqual(plain(b.run('removeLastShot([], null)')), []);
 });
 
+test('removing the last shot looks in the series of the last entry', () => {
+    const b = scoring();
+    b.context.input = [shot(1, 10), shot(2, 9), shot(3, 7), shot(4, 8), shot(5, 6), shot(6, 4)];
+    // The user corrected a shot of series 1 to 7 last: series 2 stays whole.
+    assert.deepEqual(labels(plain(b.run('removeLastShot(input, { score: 7, is_x: false, series: 1 })'))), ['1:10', '2:9', '4:8', '5:6', '6:4']);
+    // A series without shots falls back to the last series.
+    assert.deepEqual(labels(plain(b.run('removeLastShot(input, { score: 7, is_x: false, series: 5 })'))), ['1:10', '2:9', '3:7', '4:8', '5:6']);
+});
+
+test('the shots can be ordered by another number field', () => {
+    const b = scoring();
+    b.context.input = [{ shot_number: 1, score: 5, is_x: false }, { shot_number: 2, score: 9, is_x: false }];
+    assert.deepEqual(plain(b.run("sortSeries(input, 3, 'shot_number')")).map(item => `${item.shot_number}:${item.score}`), ['1:9', '2:5']);
+});
+
 test('the label of a shot is X or the number, and a miss is 0', () => {
     const b = scoring();
     assert.equal(b.run('shotLabel({ score: 10, is_x: true })'), 'X');

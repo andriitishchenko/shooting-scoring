@@ -305,6 +305,9 @@ node scripts/backup.js /path/to/backups            # all events
 node scripts/backup.js /path/to/backups TEST01     # one event
 ```
 
+The script sets the permission of each copy to the owner only. A copy has the
+lane passwords in the clear.
+
 Do not copy the `.db` files alone while the server runs. Some data can be in
 the `.db-wal` file.
 

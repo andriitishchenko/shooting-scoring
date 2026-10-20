@@ -8,6 +8,7 @@ let eventObj        = null;
 let distancesInfo   = [];
 let _pendingCode    = null;
 let retryTimer      = null;
+let reloginTimer    = null;
 let renderTimer     = null;
 let socket          = null;
 
@@ -16,7 +17,8 @@ function _clearTimers() {
     clearInterval(scrollInterval);
     clearTimeout(retryTimer);
     clearTimeout(renderTimer);
-    refreshInterval = scrollInterval = retryTimer = renderTimer = null;
+    clearTimeout(reloginTimer);
+    refreshInterval = scrollInterval = retryTimer = renderTimer = reloginTimer = null;
     if (socket) socket.disconnect();
     socket = null;
 }
@@ -33,13 +35,37 @@ function _connectLive(code, sessionId) {
     socket = new WSClient(code, sessionId);
     for (const type of ['result_update', 'event_status', 'distance_update', 'refresh', 'authenticated'])
         socket.on(type, _scheduleRender);
-    socket.on('session_rejected', async () => {
-        // The password changed. Ask for the login again.
-        _clearTimers();
-        document.getElementById('code-input').value = code;
-        await viewerEnter();
+    socket.on('session_rejected', () => {
+        // The password changed. The old socket stops. The results stay on the screen
+        // and the refresh goes on while the viewer logs in again.
+        if (socket) socket.disconnect();
+        socket = null;
+        return _relogin(code);
     });
     socket.connect();
+}
+
+// Log in again after the server ended the session. Without a password on the
+// viewer, the login works at once. With a new password, ask for it. When the
+// network fails, try again after a delay that grows to 30 seconds.
+async function _relogin(code, delay = 3000) {
+    clearTimeout(reloginTimer);
+    reloginTimer = null;
+    if (currentCode !== code) return;
+    try {
+        const res = await api.viewerLogin(code, '', AppStorage.getViewerSession());
+        if (currentCode !== code) return;
+        if (res.ok) { await _enterViewer(code, res.session_id); return; }
+    } catch (err) {
+        if (currentCode !== code) return;
+        if (err.status === 401 || /password/i.test(err.message || '')) {
+            _clearTimers();
+            _pendingCode = code;
+            _showPasswordScreen();
+            return;
+        }
+    }
+    reloginTimer = setTimeout(() => _relogin(code, Math.min(delay * 2, 30000)), delay);
 }
 
 window.addEventListener('DOMContentLoaded', () => {

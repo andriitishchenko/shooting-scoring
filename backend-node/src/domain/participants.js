@@ -13,6 +13,13 @@ export function listParticipants(db, lane) {
     : db.all(`SELECT ${COLUMNS} FROM participants WHERE lane = ? ORDER BY shift, id`, lane);
 }
 
+// A lane can add participants without limit. The limit protects the database.
+export const MAX_PARTICIPANTS = 3000;
+function requireRoom(db, extra = 1) {
+  const { count } = db.get("SELECT COUNT(*) AS count FROM participants");
+  if (count + extra > MAX_PARTICIPANTS) fail(403, `An event can have at most ${MAX_PARTICIPANTS} participants`);
+}
+
 const insert = (db, person) =>
   db.run(
     "INSERT INTO participants (name, lane, shift, gender, age_category, shooting_type, group_type, personal_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -30,6 +37,7 @@ export function addParticipant(db, auth, token, person) {
       fail(403, "Self-registration is disabled by the host");
     if (eventStatus(db) !== "created")
       fail(403, "Participants can only be added before the event starts");
+    requireRoom(db);
     const { lastInsertRowid } = insert(db, person);
     db.notify({ type: "refresh" });
     return { id: Number(lastInsertRowid), message: "Participant added" };
@@ -79,6 +87,7 @@ export function importParticipants(db, csv) {
     if (!["name", "lane", "shift"].every((name) => headers.includes(name)))
       fail(400, `CSV must contain the columns name, lane, and shift. Found: ${headers.join(", ")}`);
     if (rows.length > 500) fail(400, "Too many rows (max 500)");
+    requireRoom(db, rows.length);
     let added = 0;
     const errors = [];
     rows.forEach((row, index) => {

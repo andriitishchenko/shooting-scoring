@@ -34,8 +34,14 @@ export async function acquireLock(dir, { waitMs = 5000, staleMs = 15_000, heartb
   const folder = path.resolve(dir);
   if (held.has(folder)) throw new Error(`This process already uses the data directory ${dir}.`);
   const file = path.join(folder, ".server.lock");
-  const write = (flag) =>
-    fs.writeFileSync(file, JSON.stringify({ pid: process.pid, time: Date.now() }), { flag, mode: 0o600 });
+  const content = () => JSON.stringify({ pid: process.pid, time: Date.now() });
+  const write = (flag) => fs.writeFileSync(file, content(), { flag, mode: 0o600 });
+  // Replace the file in one step. A server that starts now never reads an empty file.
+  const rewrite = () => {
+    const temporary = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, content(), { mode: 0o600 });
+    fs.renameSync(temporary, file);
+  };
   const deadline = Date.now() + waitMs;
 
   for (;;) {
@@ -70,7 +76,7 @@ export async function acquireLock(dir, { waitMs = 5000, staleMs = 15_000, heartb
     try {
       const owner = read(file);
       // Write the time again. Write the file when it is gone. Do not take it from another server.
-      if (!owner || owner.pid === process.pid) write("w");
+      if (!owner || owner.pid === process.pid) rewrite();
     } catch {
       // The next beat tries again.
     }

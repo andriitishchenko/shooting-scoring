@@ -3,6 +3,7 @@ import { HttpError } from "../errors.js";
 import { DatabasePool } from "../db/pool.js";
 
 export const CLOSE_REVOKED = 4001;
+export const CLOSE_AUTH_TIMEOUT = 4002; // The client reconnects. It is not a rejected session (1008).
 const MAX_BUFFERED = 1024 * 1024;
 
 // The WebSocket clients of all events. A change in an event goes to the clients
@@ -95,7 +96,7 @@ export function attachWebSockets(server, { hub, pool, sessions, config, log }) {
     socket.isAlive = true;
     socket.on("pong", () => (socket.isAlive = true));
     socket.on("error", () => {});
-    const timer = setTimeout(() => socket.close(1008), config.authTimeoutMs);
+    const timer = setTimeout(() => socket.close(CLOSE_AUTH_TIMEOUT, "Authentication timeout"), config.authTimeoutMs);
     socket.on("close", () => {
       clearTimeout(timer);
       if (client) hub.leave(code, client);

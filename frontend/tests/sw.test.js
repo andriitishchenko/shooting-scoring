@@ -109,7 +109,7 @@ test('an answer with an error status is not kept', async () => {
 // ── offline.js ──────────────────────────────────────────────────────────────
 function registrar(navigator) {
     const listeners = {};
-    const context = vm.createContext({ navigator, window: { addEventListener: (type, fn) => { listeners[type] = fn; } } });
+    const context = vm.createContext({ console: { warn() {} }, navigator, window: { addEventListener: (type, fn) => { listeners[type] = fn; } } });
     vm.runInContext(read('js/offline.js'), context, { filename: 'offline.js' });
     return listeners;
 }
@@ -178,4 +178,23 @@ test('a server error answer without a copy is shown, and an error of the client 
     const missing = worker({ network: () => ({ ok: false, status: 404, clone: () => ({}) }) });
     missing.store.set('https://scores.test/practice.html', { copy: 'old' });
     assert.equal((await missing.run(get('https://scores.test/practice.html'))).answer.status, 404);
+});
+
+test('every file that the worker keeps exists, so the install does not fail', () => {
+    const list = read('sw.js').match(/const FILES = \[([\s\S]*?)\];/)[1];
+    const files = [...list.matchAll(/'([^']+)'/g)].map(match => match[1]).filter(file => file !== './');
+    assert.ok(files.length > 5);
+    for (const file of files) assert.ok(fs.existsSync(path.join(__dirname, '..', file)), `missing: ${file}`);
+});
+
+test('the worker keeps every script and stylesheet of the home page and of the practice page', () => {
+    const list = read('sw.js').match(/const FILES = \[([\s\S]*?)\];/)[1];
+    const files = new Set([...list.matchAll(/'([^']+)'/g)].map(match => match[1]));
+    for (const page of ['index.html', 'practice.html']) {
+        assert.ok(files.has(page), `${page} is not kept`);
+        const html = read(page);
+        const used = [...html.matchAll(/<(?:script[^>]*\ssrc|link[^>]*\shref)="([^"]+)"/g)].map(match => match[1]).filter(url => !/^(https?:)?\/\//.test(url));
+        assert.ok(used.length > 3, `${page}: no assets found`);
+        for (const url of used) assert.ok(files.has(url), `${page} uses ${url}, and sw.js does not keep it`);
+    }
 });

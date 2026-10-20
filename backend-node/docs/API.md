@@ -163,6 +163,8 @@ Request: `{ "csv_content": "name,lane,shift\nAnna,1,A\n" }`. The text has at mos
 columns `name`, `lane`, and `shift` are required. The columns `gender`,
 `age_category`, `shooting_type`, `group`, and `personal_number` are optional. A
 field in quotes can have commas, line breaks, and quotes (written twice).
+An event can have at most 3000 participants. A request that goes over the limit
+gets status `403`. The same limit applies to a lane that adds a participant.
 
 ```json
 { "added": 2, "failed": 1, "errors": ["Row 3: lane must be from 1 to 999, got '0'"] }
@@ -385,7 +387,8 @@ at most 4096 bytes and must arrive in 10 seconds.
 
 | Close code | Meaning |
 | --- | --- |
-| `1008` | The session is not valid, the message is wrong, or the time ended. Do not connect again with this session. |
+| `1008` | The session is not valid, or the message is wrong. Do not connect again with this session. |
+| `4002` | The first message did not arrive in 10 seconds. Connect again. |
 | `1009` | The message is too large. |
 | `1011` | An error in the server. Connect again later. |
 | `1001` | The server stops. Connect again later. |

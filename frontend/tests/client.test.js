@@ -350,6 +350,16 @@ test('a score update on the participants screen refreshes one participant only',
     assert.equal(b.storage.getParticipantState(4).distances[0].total_score, 27);
 });
 
+test('a host edit removes the hint of the delete button, and an echo of our own save keeps it', async () => {
+    const b = refreshContext();
+    b.run(`_lastEntry = { score: 9, is_x: false, series: 1 }`);
+    await b.run(`_refreshParticipantState(4, __context)`);
+    assert.deepEqual(plain(b.run('_lastEntry')), { score: 9, is_x: false, series: 1 });
+    b.data.state.distances[0].shots = [{ shot: 1, score: 9, is_x: false }, { shot: 2, score: 7, is_x: false }];
+    await b.run(`_refreshParticipantState(4, __context)`);
+    assert.equal(b.run('_lastEntry'), null);
+});
+
 test('a host edit of the open participant replaces the grid, and an echo of our own save does not', async () => {
     const b = refreshContext();
     await b.run(`_refreshParticipantState(4, __context)`);
@@ -677,7 +687,7 @@ test('clearing a shot removes the hint of the delete button', () => {
     const b = clientContext();
     distanceOf(b, 3);
     b.run('inputScore(9); inputScore(9);');
-    assert.deepEqual(plain(b.run('_lastEntry')), { score: 9, is_x: false });
+    assert.deepEqual(plain(b.run('_lastEntry')), { score: 9, is_x: false, series: 1 });
     b.context.clicked = b.document.querySelectorAll('.shot-btn')[0];
     b.run('selectShot(1, 1, { currentTarget: clicked }); selectShot(1, 1, { currentTarget: clicked });');
     assert.equal(b.run('_lastEntry'), null);

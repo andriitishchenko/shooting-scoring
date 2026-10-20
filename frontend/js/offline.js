@@ -2,6 +2,6 @@
 // without a connection. The service worker is in sw.js.
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => { /* The page works without it. */ });
+        navigator.serviceWorker.register('sw.js').catch(error => { console.warn('Offline copy is not available:', error); });
     });
 }

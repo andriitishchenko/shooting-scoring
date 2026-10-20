@@ -27,7 +27,9 @@ for (const name of wanted) {
   }
   const database = new DatabaseSync(source);
   try {
-    await backup(database, path.join(destination, name));
+    const target = path.join(destination, name);
+    await backup(database, target);
+    fs.chmodSync(target, 0o600); // The copy has the lane passwords in the clear.
     console.log(`${name}: copied`);
   } catch (error) {
     console.error(`${name}: ${error.message}`);

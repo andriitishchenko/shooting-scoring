@@ -7,7 +7,7 @@ const PRACTICE_MAX_ARROWS     = 300;
 
 let practice         = null; // { shots, results: [{ shot, score, is_x }] }
 let _practiceCurrent = null; // the slot that gets the next score
-let _practiceLast    = null; // the value that the user entered last, for the delete button
+let _practiceLast    = null; // the value and series that the user entered last, for the delete button
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = AppStorage.getPractice();
@@ -145,7 +145,7 @@ function practiceScore(score, isX = false) {
         ...practice.results.filter(result => result.shot !== target.shotNum),
         { shot: target.shotNum, score, is_x: Boolean(isX) },
     ]);
-    _practiceLast = { score, is_x: Boolean(isX) };
+    _practiceLast = { score, is_x: Boolean(isX), series: target.series };
     _afterPracticeChange();
 }
 

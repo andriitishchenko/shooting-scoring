@@ -305,6 +305,7 @@ npm run test:all
 | 5 | Enter 5, 9, 10 | The series shows `10 9 5` |
 | 6 | Enter 0, 2, X | The next series shows `X 2 0` |
 | 7 | Tap **⌫** after a wrong score | The shot that the user entered last goes. The series stays in order. |
+| 7a | Correct a shot in series 1, then tap **⌫** | The corrected shot goes. The shots of the later series stay. |
 | 8 | Reload the page | The list stays. The page asks for no event code and no password. |
 | 9 | Stop the server and reload the page (after one visit with a connection, on `localhost` or HTTPS) | The page opens, and the list stays |
 | 9a | Close the tab and open the page again | The list stays |

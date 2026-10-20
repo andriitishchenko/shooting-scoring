@@ -142,6 +142,20 @@ test("the database keeps a revision and memoizes a value until the next change",
   assert.equal(value(), 2);
 });
 
+test("a value that was calculated inside a rolled back transaction is not kept", (t) => {
+  const { pool } = makePool(t);
+  const db = pool.create("ABC1", init);
+  const count = () => db.memoize("distances", () => db.get("SELECT COUNT(*) AS count FROM distances").count);
+  const before = count();
+  assert.throws(() =>
+    db.tx(() => {
+      db.run("INSERT INTO distances (title, shots_count, sort_order) VALUES ('x', 3, 0)");
+      assert.equal(count(), before + 1);
+      throw new Error("stop");
+    }), /stop/);
+  assert.equal(count(), before);
+});
+
 test("prepared statements are kept and used again", (t) => {
   const { pool } = makePool(t);
   const db = pool.create("ABC1", init);

@@ -168,3 +168,18 @@ test("a CSV line break works with Windows line ends and empty lines", async (t) 
   const result = await request("POST", url("/import"), csv("name,lane,shift\r\nAnna,1,A\r\n\r\nBoris,2,B\r\n"), host);
   assert.equal(result.data.added, 2);
 });
+
+test("an event has a limit for the number of participants", async (t) => {
+  const { request, url, host } = await setup(t);
+  const rows = (from, to) => {
+    const lines = ["name,lane,shift"];
+    for (let i = from; i < to; i++) lines.push(`P${i},${(i % 28) + 1},A`);
+    return lines.join("\n");
+  };
+  for (let part = 0; part < 6; part++) {
+    const answer = await request("POST", url("/import"), { csv_content: rows(part * 500, part * 500 + 500) }, host);
+    assert.equal(answer.status, 200, JSON.stringify(answer.data));
+  }
+  assert.equal((await request("POST", url(), person(), host)).status, 403);
+  assert.equal((await request("POST", url("/import"), { csv_content: rows(0, 2) }, host)).status, 403);
+});

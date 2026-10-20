@@ -339,7 +339,8 @@ async function updateDistTitle(distId, newTitle) {
 async function changeShots(distId, delta) {
     const d = currentDistances.find(x => x.id === distId);
     if (!d) return;
-    const newCount = Math.max(1, Math.min(200, d.shots_count + delta));
+    // The server allows 1 to 300 shots. A cap of 200 cut a longer distance back to 200.
+    const newCount = Math.max(1, Math.min(300, d.shots_count + delta));
     if (newCount === d.shots_count) return;
     try {
         await api.updateDistance(currentCode, distId, { shots_count: newCount });
@@ -861,8 +862,7 @@ async function editDetailShot(shotNumber) {
             return;
         }
         // Each series is in order from the highest to the lowest, like on the lane page.
-        const ordered = sortSeries(shots.map(({ shot_number, ...rest }) => ({ ...rest, shot: shot_number })))
-            .map(({ shot, ...rest }) => ({ shot_number: shot, ...rest }));
+        const ordered = sortSeries(shots, CONFIG.SERIES_SIZE, 'shot_number');
 
         const {participantId, distanceId} = detailContext;
         const code = detailContext.code ?? currentCode;
@@ -1000,7 +1000,8 @@ async function exportCSV() {
         a.href = url;
         a.download = `results_${currentCode}_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
-        URL.revokeObjectURL(url);
+        // Some browsers need the address to stay valid after the click.
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) { alert('Export error: ' + err.message); }
 }
 

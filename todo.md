@@ -105,6 +105,8 @@ The Node.js server is now a separate service. It has its own database and does n
 70. The participant card of the client shows the number of results that are entered for each distance (`shots_taken` in the state of a participant).
 71. A lane that lost its password asks the host for a reset. The host approves or denies in the host panel. After an approval, the device that asked shows the new password like on the first entry. The request waits 15 minutes in memory, survives a page reload on the client, and an approval ends the other sessions of the lane.
 
+72. After `session_rejected`, the viewer keeps the results on the screen and logs in again. After a network error, it tries again after 3 seconds, then 6, 12, and up to 30 seconds. If the server asks for a password, the viewer shows the password screen.
+
 ## Open
 
 - Unsent client scores can replace a host correction on a finished distance. The last write wins. The server accepts this by design.
@@ -116,6 +118,3 @@ The Node.js server is now a separate service. It has its own database and does n
    - Failure scenario: Lane 3 asks for a reset. The host approves. The old sessions of lane 3 end. Before the device asks for the result, a second device sends `POST /api/sessions/:code/lane/3/reset-request`. The first device gets `expired` and has no session. The host must read the new password in the host panel and give it to the lane.
    - Not fixed: The correct rule needs a decision of the user. Two options: refuse a new request (409) while an approved result waits, or keep the approved result next to the new request.
 
-2. 2026-10-19 · low · `frontend/js/viewer.js:36` · After `session_rejected`, the viewer stops all timers and the socket before it logs in again. If the new login fails because of a network error, the viewer stops all updates.
-   - Failure scenario: The host changes the viewer password. The viewer gets `session_rejected`. At that moment the network is down, so `api.getEvent` fails. The viewer shows the alert "Event not found". The results screen stays open with old data. The page does not refresh and does not try again. The user must reload the page.
-   - Not fixed: The correct behaviour needs a decision of the user. Two options: try the login again after a delay, or go back to the code screen.
