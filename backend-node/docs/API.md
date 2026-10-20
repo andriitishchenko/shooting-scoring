@@ -361,6 +361,8 @@ lane gets a new password. Answer: `{ "message": "Session for lane 3 reset" }`.
 
 - One account (host, viewer, or one lane) and one address can fail 10 times in
   15 minutes. Then the server answers `429` for 15 minutes.
+  An account belongs to one event. The failures in one event do not lock the
+  same account in another event.
 - One address can fail `LOGIN_FAILURE_LIMIT` times (default 100) in 15 minutes
   for all accounts together.
 - The server counts an attempt before it checks the password. A correct password

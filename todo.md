@@ -109,3 +109,13 @@ The Node.js server is now a separate service. It has its own database and does n
 
 - Unsent client scores can replace a host correction on a finished distance. The last write wins. The server accepts this by design.
 - The `backend` folder (FastAPI) is not used and not changed. Nobody needs its data.
+
+## Auto-review backlog
+
+1. 2026-10-19 · low · `backend-node/src/domain/resets.js:29` · A new reset request replaces a request that the host approved but that the device did not collect.
+   - Failure scenario: Lane 3 asks for a reset. The host approves. The old sessions of lane 3 end. Before the device asks for the result, a second device sends `POST /api/sessions/:code/lane/3/reset-request`. The first device gets `expired` and has no session. The host must read the new password in the host panel and give it to the lane.
+   - Not fixed: The correct rule needs a decision of the user. Two options: refuse a new request (409) while an approved result waits, or keep the approved result next to the new request.
+
+2. 2026-10-19 · low · `frontend/js/viewer.js:36` · After `session_rejected`, the viewer stops all timers and the socket before it logs in again. If the new login fails because of a network error, the viewer stops all updates.
+   - Failure scenario: The host changes the viewer password. The viewer gets `session_rejected`. At that moment the network is down, so `api.getEvent` fails. The viewer shows the alert "Event not found". The results screen stays open with old data. The page does not refresh and does not try again. The user must reload the page.
+   - Not fixed: The correct behaviour needs a decision of the user. Two options: try the login again after a delay, or go back to the code screen.

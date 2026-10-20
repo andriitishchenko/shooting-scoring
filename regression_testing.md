@@ -190,15 +190,14 @@ npm run test:all
 | Step | Action | Expected result |
 |------|--------|-----------------|
 | 1 | CLIENT A opens Lane 1 (new lane) and continues | Participants screen |
-| 2 | CLIENT B (other browser) → code → Lane 1 | Password prompt with the button **Forgot the password? Ask the host to reset it** |
-| 3 | CLIENT B → tap the button | "Waiting for the host to approve the reset…" and a **Cancel the request** button |
+| 2 | CLIENT B (other browser) → code → Lane 1 | Password prompt with the button **Request password** |
+| 3 | CLIENT B → tap the button | "Waiting for the host to approve the reset…". The page has no button to cancel the request. |
 | 4 | HOST → Participants tab | Yellow banner "Lane 1 asks for a password reset". The Lane 1 header shows **Approve** and **Deny** |
 | 5 | CLIENT B → reload the page, select Lane 1 again | The page continues to wait (no second request needed) |
 | 6 | HOST → **Deny** | CLIENT B shows "The host denied the request." and the button again. CLIENT A is not disturbed. The banner is gone. |
 | 7 | CLIENT B → ask again. HOST → **Approve** → confirm | CLIENT B shows the "Lane Password" screen with a new password. CLIENT A returns to lane selection. |
 | 8 | HOST → lane header | The new password shows next to Lane 1. The yellow label is gone. |
 | 9 | CLIENT B → **Continue** | Participants screen. The old password does not work. The new password works. |
-| 10 | CLIENT B → ask, and tap **Cancel the request** | The button shows again. HOST: the request stays until it ends (15 minutes) or is denied. |
 
 ### 5.7 Lane password: copy
 
@@ -292,6 +291,25 @@ npm run test:all
 | 2 | Click the blank cell for the active distance | The detail popup opens with empty shot slots |
 | 3 | Enter a score for an empty slot and save | The score appears in the distance column and detail popup |
 | 4 | Correct one shot, then immediately try to correct another while the first save is pending | The second full-series replacement is ignored until the first request completes |
+
+---
+
+## 7a. Practice — Counting without a server
+
+| Step | Action | Expected result |
+|------|--------|-----------------|
+| 1 | Open the home page | The button **PRACTICE** shows |
+| 2 | Tap **PRACTICE** | The start screen shows 30 arrows |
+| 3 | Enter 0, 301, or text, and tap **Start** | A message shows. The list does not start. |
+| 4 | Enter 12 and tap **Start** | The score form shows 4 series of 3 shots |
+| 5 | Enter 5, 9, 10 | The series shows `10 9 5` |
+| 6 | Enter 0, 2, X | The next series shows `X 2 0` |
+| 7 | Tap **⌫** after a wrong score | The shot that the user entered last goes. The series stays in order. |
+| 8 | Reload the page | The list stays. The page asks for no event code and no password. |
+| 9 | Stop the server and reload the page (after one visit with a connection, on `localhost` or HTTPS) | The page opens, and the list stays |
+| 9a | Close the tab and open the page again | The list stays |
+| 10 | Tap **New** and confirm | The list goes, and the start screen shows. A reload now shows the start screen. |
+| 11 | Open the page on a phone (width 320, 375, and landscape 667x375) | All buttons show without a scroll of the page. The delete button is wide. The grid scrolls above the buttons. |
 
 ---
 

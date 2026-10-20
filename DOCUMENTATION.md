@@ -125,7 +125,7 @@ A grid of lane buttons is shown. Tap the lane you are sitting on.
 |---------|-------------|
 | **New lane** | A session is created. A password screen appears showing your lane password (6 characters). Write it down — you will need it if you reload the page or switch devices. Tap the password to copy it. |
 | **Your lane** (session remembered) | Auto-login — you go straight to the participants screen. |
-| **Lane occupied** | A password prompt appears. Enter the password shown when you first connected. If you lost it, tap **Forgot the password? Ask the host to reset it**. The page waits while the host decides. If the host approves, the page shows a new password, like on the first entry. If the host denies, or the request ends after 15 minutes, the page says so and you can ask again. A reload does not cancel the request. The other devices on this lane are disconnected after an approval. |
+| **Lane occupied** | A password prompt appears. Enter the password shown when you first connected. If you lost it, tap **Request password**. The page waits while the host decides. If the host approves, the page shows a new password, like on the first entry. If the host denies, or the request ends after 15 minutes, the page says so and you can ask again. A reload does not cancel the request. The other devices on this lane are disconnected after an approval. |
 
 ### 3.3 Participants Screen
 
@@ -140,11 +140,41 @@ Shows a grid of shot slots organised in series of 3.
 
 - Tap an **empty slot** to select it (highlighted in blue).
 - Tap a **score button** (M, 1–10, X) to record the score. The slot fills, the series total and cumulative total update.
-- Tap a **filled slot** to re-select it, then tap a different score button to correct it.
+- Tap a **filled slot** to re-select it, then tap a different score button to correct it. Tap the selected slot again to clear it.
+- The **⌫** button deletes the shot that the user entered last.
+- Each series shows its shots in order from the highest to the lowest (for example `10 9 5`, `5 2 0`, or `X 10 10`). An X is above a 10. When the user enters or clears a shot, the series is ordered again, and the shots use the first places of the series. Shots that come from the server and corrections of the host (in the results details) follow the same rule.
 - **X** counts as 10 points with the X flag set.
 - **M** counts as 0 (miss).
 - Each score change is saved in the browser and sent to the server as a replacement of the full distance score set. If the connection drops, pending scores remain on that device and retry when the connection returns while the event is started. Pending sets are tied to the lane session that recorded them; a new session ignores unsent data from an older session.
 - When the host finishes the last active distance, the screen returns to the participants list. Finishing the event also displays an alert. The server does not accept scores from a lane after the event finished. The page moves the unsent scores to an archive on the device and shows the button **Download unsent scores**. The button saves them as a JSON file for recovery. The host can enter them again in the results view.
+
+---
+
+### 3.5 Practice (no server)
+
+PRACTICE counts the score of one person on one device. It does not use a server.
+It needs no event code, no password, and no session. It sends no data to a server.
+
+1. On the home page, tap **PRACTICE**. The page `practice.html` opens.
+2. Enter the number of arrows. The default is 30. The limit is 300.
+3. Tap **Start**. The score form is the same as the CLIENT form: series of 3
+   shots, the score buttons, **⌫**, and the same ordering of each series.
+4. Tap the score buttons to enter the shots.
+5. The page shows the total, the number of 10s, the number of X, and the number
+   of arrows that the user entered.
+
+The browser saves the list after each shot. When the user reloads or closes the
+page, the list stays. The list stays until the user ends the count. To end the
+count, tap **New** and confirm. The list is deleted and the start screen shows.
+
+The page can also open without a network. Open the home page or the practice
+page one time with a connection. The service worker `sw.js` then keeps the
+files of these two pages on the device. A service worker works only on HTTPS
+or on `localhost`. On a plain HTTP address (for example `http://192.168.1.10:8000`),
+the page needs the network to open.
+
+If the network does not answer in 3 seconds, or the server returns an error,
+the page opens from the saved files. Other pages and the API are not affected.
 
 ---
 
@@ -217,8 +247,9 @@ backend-node/
 ├── docs/API.md            API reference
 └── scripts/backup.js      Backup of the event databases
 frontend/
-├── index.html host.html client.html viewer.html
-├── js/                    config, storage, api, websocket, host, client, viewer
+├── index.html host.html client.html viewer.html practice.html
+├── sw.js                  Service worker of the practice page
+├── js/                    config, storage, api, websocket, scoring, host, client, viewer, practice, offline
 ├── css/
 └── tests/                 Tests of the browser scripts
 ```

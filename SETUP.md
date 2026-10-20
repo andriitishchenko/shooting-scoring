@@ -71,7 +71,7 @@ The full list of settings is in [backend-node/README.md](backend-node/README.md#
 4. Select a lane number. A new lane shows a password of 6 characters. Write it
    down. You need it to open this lane on another device. If you lose it, the
    host sees the password in the host panel, next to the lane. A person at the
-   lane can also tap **Forgot the password? Ask the host to reset it** on the
+   lane can also tap **Request password** on the
    password screen. The host approves in the host panel, and the page shows a
    new password.
 5. Click **Add** (only before the competition starts).
@@ -84,9 +84,22 @@ The full list of settings is in [backend-node/README.md](backend-node/README.md#
 
 1. In the lane view, tap the name of a participant.
 2. The score screen shows the series (3 shots each) and the score buttons.
-3. Tap a button for each shot.
+3. Tap a button for each shot. Each series shows its shots from the highest to the lowest.
 4. The score is saved on the device and sent to the server.
 5. Tap **Back** when you finish.
+
+### Count the score without a server (PRACTICE)
+
+PRACTICE needs no event code, no password, and no session on the server.
+
+1. Open the home page and tap **PRACTICE**.
+2. Enter the number of arrows (30 is the default) and tap **Start**.
+3. Tap a button for each shot. The form is the same as in the CLIENT.
+4. The browser keeps the list. A reload does not delete it.
+5. To end the count, tap **New** and confirm. The list is deleted.
+
+To open the page without a network, open it one time with a connection. This
+works only on HTTPS or on `localhost`.
 
 ### Show the leaderboard (VIEWER)
 
@@ -253,6 +266,8 @@ the scroll from the current position. The browser keeps the choice.
 2. Set `TRUSTED_PROXIES` to the address of the proxy.
 3. The default CORS setting accepts only the same origin. To host the pages on
    another origin, set `ALLOWED_ORIGINS` to a JSON list of exact origins.
+   The server lets these origins read the `Retry-After` header. The pages
+   use this header to show the waiting time after status 429.
 4. Run one server process under a process manager or a service unit.
 5. Keep the data folder on persistent storage. Only the user of the server
    may read it. Make backups on a schedule.
