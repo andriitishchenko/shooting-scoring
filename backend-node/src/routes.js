@@ -86,6 +86,7 @@ const Properties = shape({
   host_password: optional(hostPassword),
   viewer_password: optional(viewerPassword),
   client_allow_add_participant: optional(boolean()),
+  lane_count: optional(integer({ min: 1, max: 999 })),
 });
 
 // The names of the path parameters that are numbers, and their limits.

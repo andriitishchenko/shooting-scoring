@@ -545,6 +545,52 @@ test('the default lane count stays when the participant list cannot be loaded', 
     assert.equal(b.get('lane-buttons').children.length, 28);
 });
 
+test('the lane list follows the lane count of the server', async () => {
+    const b = clientContext();
+    b.context.api.getPublicProperties = async () => ({ client_allow_add_participant: true, lane_count: 12 });
+    b.run(`currentCode = 'EVENT1'`);
+    await b.run('_initConnections()');
+    b.run('showLaneSelection()');
+    assert.equal(b.get('lane-buttons').children.length, 12);
+});
+
+test('a lane with a participant shows when the lane count is lower', async () => {
+    const b = clientContext();
+    b.context.api.getPublicProperties = async () => ({ client_allow_add_participant: true, lane_count: 5 });
+    b.context.api.getParticipants = async () => [{ id: 9, name: 'Far', lane_number: 8, shift: 'A' }];
+    b.run(`currentCode = 'EVENT1'`);
+    await b.run('_initConnections()');
+    b.run('showLaneSelection()');
+    assert.equal(b.get('lane-buttons').children.length, 8);
+});
+
+test('the lane list changes while it is open when the host changes the lane count', async () => {
+    const b = clientContext();
+    let lanes = 12;
+    b.context.CONFIG.RESET_POLL_MS = 5;
+    b.context.api.getPublicProperties = async () => ({ client_allow_add_participant: true, lane_count: lanes });
+    b.run(`currentCode = 'EVENT1'; currentLane = null`);
+    await b.run('_initConnections()');
+    b.run('showLaneSelection()');
+    assert.equal(b.get('lane-buttons').children.length, 12);
+    lanes = 20;
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(b.get('lane-buttons').children.length, 20);
+    b.run(`_showScreen('participants-screen')`);
+    lanes = 30;
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(b.get('lane-buttons').children.length, 20);
+});
+
+test('a reconnect refresh updates the lane count for the next lane selection', async () => {
+    const b = clientContext();
+    b.context.api.getPublicProperties = async () => ({ client_allow_add_participant: true, lane_count: 33 });
+    await b.run('_reconcile()');
+    b.run('showLaneSelection()');
+    assert.equal(b.get('lane-buttons').children.length, 33);
+    b.run(`_showScreen('participants-screen')`);
+});
+
 test('damaged saved data is ignored and does not stop the lane', async () => {
     const b = clientContext();
     b.values.set('pending_results_EVENT1_4_7', '{broken');

@@ -1,5 +1,6 @@
-// Each item changes the schema from version N to N + 1. Never change an old item.
-// Add a new item at the end. The server runs the missing items when it opens a database.
+// Each item changes the schema from version N to N + 1.
+// The project creates each database again, so the schema is one item. Change it in place.
+// When databases must stay, add a new item at the end and do not change an old item. The server runs the missing items when it opens a database.
 export const migrations = [
   `
   CREATE TABLE event (
@@ -8,6 +9,7 @@ export const migrations = [
     status      TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'started', 'finished')),
     shots_count INTEGER NOT NULL CHECK (shots_count BETWEEN 1 AND 300),
     allow_lane_add INTEGER NOT NULL DEFAULT 1 CHECK (allow_lane_add IN (0, 1)),
+    lane_count  INTEGER NOT NULL DEFAULT 28 CHECK (lane_count BETWEEN 1 AND 999),
     created_at  TEXT NOT NULL,
     started_at  TEXT,
     finished_at TEXT

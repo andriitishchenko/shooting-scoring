@@ -258,12 +258,12 @@ keeps the answer in memory until the data changes.
 | --- | --- | --- |
 | `GET /api/properties/{code}` | host | Settings. Never a password. |
 | `PATCH /api/properties/{code}` | host | Change settings |
-| `GET /api/properties/{code}/public` | none | `{ "client_allow_add_participant": true }` |
+| `GET /api/properties/{code}/public` | none | `{ "client_allow_add_participant": true, "lane_count": 28 }` |
 
 `GET` answer:
 
 ```json
-{ "host_password_configured": true, "viewer_password_configured": false, "client_allow_add_participant": true }
+{ "host_password_configured": true, "viewer_password_configured": false, "client_allow_add_participant": true, "lane_count": 28 }
 ```
 
 `PATCH` body (all fields are optional):
@@ -273,6 +273,7 @@ keeps the answer in memory until the data changes.
 | `host_password` | 12 to 64 characters. The host password cannot be empty. |
 | `viewer_password` | 12 to 64 characters. An empty text removes the password and makes the leaderboard public. |
 | `client_allow_add_participant` | `true` or `false` |
+| `lane_count` | Integer from 1 to 999. The default is 28. |
 
 ## Logins
 

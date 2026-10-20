@@ -50,7 +50,7 @@ test('every API method works against the Node server', async t => {
     assert.equal(properties.host_password_configured, true);
     assert.equal(properties.client_allow_add_participant, true);
     await api(`updateProperties('${code}', { client_allow_add_participant: false })`);
-    assert.deepEqual(await api(`getPublicProperties('${code}')`), { client_allow_add_participant: false });
+    assert.deepEqual(await api(`getPublicProperties('${code}')`), { client_allow_add_participant: false, lane_count: 28 });
     await api(`updateProperties('${code}', { client_allow_add_participant: true })`);
 
     const hostLogin = await api(`hostLogin('${code}', '${created.host_password}')`);
@@ -167,7 +167,7 @@ test('host page runs a full competition against the Node server', async t => {
     b.get('setting-viewer-public').checked = true;
     await b.run('saveSettings()');
     assert.equal(b.alerts.at(-1), 'Settings saved!');
-    assert.deepEqual(await (await fetch(`${s.base}/api/properties/HOST01/public`)).json(), { client_allow_add_participant: false });
+    assert.deepEqual(await (await fetch(`${s.base}/api/properties/HOST01/public`)).json(), { client_allow_add_participant: false, lane_count: 28 });
 
     await fetch(`${s.base}/api/sessions/HOST01/lane/1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     await b.run('loadParticipants()');

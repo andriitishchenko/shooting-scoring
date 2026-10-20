@@ -10,6 +10,7 @@ test("the host reads the settings and never a password", async (t) => {
     host_password_configured: true,
     viewer_password_configured: false,
     client_allow_add_participant: true,
+    lane_count: 28,
   });
   assert.equal(JSON.stringify(answer.data).includes(password), false);
   assert.equal((await request("GET", `/api/properties/${code}`)).status, 401);
@@ -18,7 +19,7 @@ test("the host reads the settings and never a password", async (t) => {
 test("the public settings need no session and show only the allow flag", async (t) => {
   const { request, createEvent } = await startApp(t);
   const { code } = await createEvent();
-  assert.deepEqual((await request("GET", `/api/properties/${code}/public`)).data, { client_allow_add_participant: true });
+  assert.deepEqual((await request("GET", `/api/properties/${code}/public`)).data, { client_allow_add_participant: true, lane_count: 28 });
 });
 
 test("the host sets and removes the viewer password", async (t) => {
@@ -63,4 +64,13 @@ test("changing settings needs the host", async (t) => {
   const lane = (await request("POST", `/api/sessions/${code}/lane/1`, {})).data;
   assert.equal((await request("PATCH", `/api/properties/${code}`, { client_allow_add_participant: false })).status, 401);
   assert.equal((await request("PATCH", `/api/properties/${code}`, { client_allow_add_participant: false }, lane.session_id)).status, 401);
+});
+
+test("the host sets the number of lanes", async (t) => {
+  const { request, createEvent } = await startApp(t);
+  const { code, host } = await createEvent();
+  assert.equal((await request("PATCH", `/api/properties/${code}`, { lane_count: 12 }, host)).status, 200);
+  assert.equal((await request("GET", `/api/properties/${code}/public`)).data.lane_count, 12);
+  for (const value of [0, 1000, 1.5, "5"])
+    assert.equal((await request("PATCH", `/api/properties/${code}`, { lane_count: value }, host)).status, 422);
 });

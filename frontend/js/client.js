@@ -17,6 +17,8 @@ let wsClient            = null;
 let allowAddParticipant = true;
 let currentDistanceId   = null;
 let laneCount           = 0;
+let configuredLanes     = CONFIG.LANE_COUNT;
+let laneListTimer       = null;
 const resultSaveQueue   = new Map();
 
 let lanePassword = '';
@@ -149,6 +151,7 @@ async function _initConnections() {
     eventData = event;
     distances = loadedDistances;
     allowAddParticipant = properties.client_allow_add_participant !== false;
+    configuredLanes = properties.lane_count ?? CONFIG.LANE_COUNT;
 }
 
 async function _tryAutoLogin(lane, sessionId) {
@@ -195,9 +198,14 @@ async function clientEnter() {
 function showLaneSelection() {
     _stopResetWatch();
     _showScreen('lane-screen');
+    _renderLaneButtons();
+    _watchLaneList(_context());
+}
+
+function _renderLaneButtons() {
     const container = document.getElementById('lane-buttons');
     container.innerHTML = '';
-    for (let i = 1; i <= Math.max(CONFIG.LANE_COUNT, laneCount); i++) {
+    for (let i = 1; i <= Math.max(configuredLanes, laneCount); i++) {
         const btn = document.createElement('button');
         btn.className = 'btn btn-secondary lane-btn';
         btn.textContent = i;
@@ -205,6 +213,35 @@ function showLaneSelection() {
         btn.addEventListener('click', () => selectLane(i));
         container.appendChild(btn);
     }
+}
+
+// The lane screen has no socket. It asks the server for the lane count while it is open,
+// so a change of the host shows without a new entry of the event code.
+function _stopLaneListWatch() {
+    clearTimeout(laneListTimer);
+    laneListTimer = null;
+}
+
+function _watchLaneList(context) {
+    _stopLaneListWatch();
+    laneListTimer = setTimeout(async () => {
+        try {
+            const [properties, everyone] = await Promise.all([
+                api.getPublicProperties(context.code), api.getParticipants(context.code)
+            ]);
+            if (laneListTimer === null || !_isCurrent(context)) return;
+            const lanes = properties.lane_count ?? CONFIG.LANE_COUNT;
+            const highest = Math.max(0, ...everyone.map(participant => participant.lane_number));
+            if (lanes !== configuredLanes || highest !== laneCount) {
+                configuredLanes = lanes;
+                laneCount = highest;
+                _renderLaneButtons();
+            }
+        } catch (error) {
+            // A network error keeps the list. The next poll tries again.
+        }
+        if (laneListTimer !== null && _isCurrent(context)) _watchLaneList(context);
+    }, CONFIG.RESET_POLL_MS);
 }
 
 async function selectLane(laneNumber) {
@@ -522,6 +559,7 @@ async function loadLaneParticipants({ show = false } = {}) {
     distances = loadedDistances;
     participants = loadedParticipants;
     allowAddParticipant = properties.client_allow_add_participant !== false;
+    configuredLanes = properties.lane_count ?? CONFIG.LANE_COUNT;
     await _syncPendingResults();
     if (!_isCurrent(context)) return;
     await _refreshAllParticipantStates();
@@ -1091,6 +1129,7 @@ function backToLane() {
 // ============================================================
 function _showScreen(screenId) {
     navigationVersion++;
+    if (screenId !== 'lane-screen') _stopLaneListWatch();
     if (screenId !== 'lane-password-screen' && lanePassword) _clearLanePassword();
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     const el = document.getElementById(screenId);

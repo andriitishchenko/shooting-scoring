@@ -133,6 +133,17 @@ test("the host imports participants from CSV", async (t) => {
   assert.equal(people[0].shift, "A");
 });
 
+test("a CSV import raises the lane count to the highest lane and never lowers it", async (t) => {
+  const { request, url, host, event } = await setup(t);
+  const lanes = async () => (await request("GET", `/api/properties/${event.code}/public`)).data.lane_count;
+  await request("POST", url("/import"), csv("name,lane,shift\nA,5,A\n"), host);
+  assert.equal(await lanes(), 28);
+  await request("POST", url("/import"), csv("name,lane,shift\nB,40,A\nC,bad,A\n"), host);
+  assert.equal(await lanes(), 40);
+  await request("POST", url("/import"), csv("name,lane,shift\nD,7,A\n"), host);
+  assert.equal(await lanes(), 40);
+});
+
 test("a CSV import reports the rows with errors and adds the other rows", async (t) => {
   const { request, url, host } = await setup(t);
   const text = "name,lane,shift\nOK,1,A\n,2,B\nBad lane,0,A\nWord lane,x,A\nNo shift,4,\n" + `${"N".repeat(121)},5,A\nLast,6,F\n`;

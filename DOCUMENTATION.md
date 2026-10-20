@@ -104,6 +104,7 @@ Shows a ranked table grouped by gender + bow type. Columns: Rank, Name, Lane, pe
 | Host Password | Enter a new password of at least 12 characters; leave blank to keep the current password. Host password protection is always enabled. A new password ends the host sessions on all other devices. |
 | Viewer Password | Enter a new password of at least 12 characters, or enable public viewing. Leave blank to keep the current setting. A new password ends the viewer sessions. The viewers must enter the new password. |
 | Allow clients to self-register | When unchecked, clients cannot add participants on their own lane — only the host can add participants. Enforced server-side. |
+| Number of lanes | An integer from 1 to 999. The default is 28. The lane list of the client shows lanes 1 to this number. A lane that has a participant always shows. A CSV import raises this number to the highest imported lane. The open lane list of a client updates in a few seconds. |
 
 After saving, a WebSocket `refresh` message is broadcast so connected hosts and lane clients re-fetch the setting.
 

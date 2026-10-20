@@ -240,9 +240,15 @@ ipconfig
 
 ### Number of lanes
 
-The lane list shows lanes 1 to 28. If a participant is on a higher lane (up to
-999), the list shows lanes up to that number. To change the minimum, edit
-`LANE_COUNT` in `frontend/js/config.js`.
+The host sets the number of lanes in **⚙️ Event Settings**, in the field
+**Number of lanes**. The value is from 1 to 999. The default is 28. The lane list
+of the client shows lanes 1 to this number. If a participant is on a higher lane,
+the list shows lanes up to that lane. `LANE_COUNT` in `frontend/js/config.js` is
+the value that the client uses when the server does not send a number.
+
+A CSV import of participants raises the number of lanes to the highest imported
+lane. The import never lowers the number. A client that shows the lane list gets
+the new number in a few seconds.
 
 ### Shots in a series
 

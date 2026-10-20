@@ -80,8 +80,10 @@ function browserContext() {
         document, localStorage, navigator: {}, history: { replaceState() {} },
         console: { warn: (...args) => warnings.push(args), error: (...args) => warnings.push(args) },
         alert: text => alerts.push(text), confirm: () => true,
-        CONFIG: { CODE_LENGTH: 6, LANE_COUNT: 28, SERIES_SIZE: 3, REQUEST_TIMEOUT_MS: 15, API_BASE_URL: '/api', WS_BASE_URL: 'ws://scores.test/ws' },
-        setTimeout, clearTimeout, setInterval, clearInterval, AbortController, URLSearchParams, URL, Blob,
+        CONFIG: { CODE_LENGTH: 6, LANE_COUNT: 28, SERIES_SIZE: 3, REQUEST_TIMEOUT_MS: 15, RESET_POLL_MS: 3000, API_BASE_URL: '/api', WS_BASE_URL: 'ws://scores.test/ws' },
+        // A timer of the page must not keep the test process alive (the lane list polls until it is closed).
+        setTimeout: (...args) => { const timer = setTimeout(...args); timer.unref?.(); return timer; },
+        clearTimeout, setInterval, clearInterval, AbortController, URLSearchParams, URL, Blob,
     });
     const run = script => vm.runInContext(script, context);
     const load = file => vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'), context, { filename: file });

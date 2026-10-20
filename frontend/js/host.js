@@ -592,6 +592,7 @@ async function openSettingsModal() {
         document.getElementById('setting-viewer-pw').value = '';
         document.getElementById('setting-viewer-public').checked = !props.viewer_password_configured;
         document.getElementById('setting-allow-add').checked = props.client_allow_add_participant !== false;
+        document.getElementById('setting-lane-count').value = props.lane_count ?? CONFIG.LANE_COUNT;
     } catch (err) {
         alert('Could not load the settings: ' + err.message);
         return;
@@ -608,12 +609,16 @@ async function saveSettings() {
     const hostPw    = document.getElementById('setting-host-pw').value.trim();
     const viewerPw  = document.getElementById('setting-viewer-pw').value.trim();
     const allowAdd  = document.getElementById('setting-allow-add').checked;
+    const laneCount = Number(document.getElementById('setting-lane-count').value);
     const errEl     = document.getElementById('settings-error');
     errEl.classList.add('hidden');
 
     try {
+        if (!Number.isInteger(laneCount) || laneCount < 1 || laneCount > 999)
+            throw new Error('The number of lanes must be from 1 to 999.');
         const updates = {
-            client_allow_add_participant: allowAdd
+            client_allow_add_participant: allowAdd,
+            lane_count: laneCount
         };
         if (hostPw) updates.host_password = hostPw;
         if (viewerPw) updates.viewer_password = viewerPw;

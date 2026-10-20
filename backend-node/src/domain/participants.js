@@ -89,6 +89,7 @@ export function importParticipants(db, csv) {
     if (rows.length > 500) fail(400, "Too many rows (max 500)");
     requireRoom(db, rows.length);
     let added = 0;
+    let highest = 0;
     const errors = [];
     rows.forEach((row, index) => {
       const cell = Object.fromEntries(headers.map((name, column) => [name, row[column] ?? ""]));
@@ -112,8 +113,11 @@ export function importParticipants(db, csv) {
         group_type: clean(cell.group),
         personal_number: clean(cell.personal_number, 32),
       });
+      highest = Math.max(highest, Number(lane));
       added++;
     });
+    // The list of lanes grows to the highest imported lane. It never gets smaller.
+    db.run("UPDATE event SET lane_count = MAX(lane_count, ?) WHERE id = 1", highest);
     if (added) db.notify({ type: "refresh" });
     return { added, failed: errors.length, errors: errors.slice(0, 50) };
   });

@@ -235,6 +235,11 @@
                     </label>
                     <small class="settings-hint">Enables "Add Participant" button on client lane screen</small>
                 </div>
+                <div class="settings-group">
+                    <label class="settings-label" for="setting-lane-count">Number of lanes</label>
+                    <input type="number" id="setting-lane-count" min="1" max="999" step="1" value="28">
+                    <small class="settings-hint">The client lane list shows lanes 1 to this number (default 28). A lane with a participant always shows.</small>
+                </div>
                 <div id="settings-error" class="settings-error hidden"></div>
                 <div class="modal-footer">
                     <button class="btn" data-click="closeSettingsModal">Cancel</button>

@@ -224,20 +224,31 @@ test('the QR code reports a missing generator and does not open an empty window'
 test('host settings read and write the allow-add flag as a boolean', async () => {
     const saved = [];
     const { b } = hostContext({
-        async getProperties() { return { viewer_password_configured: true, client_allow_add_participant: false }; },
+        async getProperties() { return { viewer_password_configured: true, client_allow_add_participant: false, lane_count: 12 }; },
         async updateProperties(code, update) { saved.push(update); return {}; },
     });
     await b.run('openSettingsModal()');
+    assert.equal(b.get('setting-lane-count').value, 12);
     assert.equal(b.get('setting-allow-add').checked, false);
     assert.equal(b.get('setting-viewer-public').checked, false);
     b.get('setting-allow-add').checked = true;
     b.get('setting-host-pw').value = '';
     b.get('setting-viewer-pw').value = '';
     await b.run('saveSettings()');
-    assert.deepEqual(JSON.parse(JSON.stringify(saved)), [{ client_allow_add_participant: true }]);
+    assert.deepEqual(JSON.parse(JSON.stringify(saved)), [{ client_allow_add_participant: true, lane_count: 12 }]);
     b.get('setting-allow-add').checked = false;
     await b.run('saveSettings()');
-    assert.deepEqual(JSON.parse(JSON.stringify(saved.at(-1))), { client_allow_add_participant: false });
+    assert.deepEqual(JSON.parse(JSON.stringify(saved.at(-1))), { client_allow_add_participant: false, lane_count: 12 });
+    b.get('setting-lane-count').value = '40';
+    await b.run('saveSettings()');
+    assert.equal(saved.at(-1).lane_count, 40);
+    const count = saved.length;
+    for (const bad of ['0', '1000', '2.5', '']) {
+        b.get('setting-lane-count').value = bad;
+        await b.run('saveSettings()');
+        assert.match(b.get('settings-error').textContent, /from 1 to 999/);
+    }
+    assert.equal(saved.length, count);
 });
 
 function hostSocket(b) {
