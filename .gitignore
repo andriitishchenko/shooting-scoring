@@ -75,3 +75,7 @@ backend-node/data/
 *.db-wal
 *.db-shm
 .server.lock
+
+# Standalone Scoring application
+/scoring/
+/frontend/scoring/
