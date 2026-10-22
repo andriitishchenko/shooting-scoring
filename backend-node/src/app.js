@@ -3,7 +3,7 @@ import http from "node:http";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { HttpError, fail } from "./errors.js";
-import { loadConfig, serviceRoot } from "./config.js";
+import { defaultPolicy, loadConfig, scoringPolicy, serviceRoot } from "./config.js";
 import { createLogger } from "./log.js";
 import { acquireLock } from "./lock.js";
 import { DatabasePool } from "./db/pool.js";
@@ -124,12 +124,22 @@ export function createApp(overrides = {}) {
     } catch {
       return send(res, 400, { detail: "Bad Request" });
     }
+    let staticPath;
+    try { staticPath = path.posix.normalize(decodeURIComponent(url.pathname)); }
+    catch { /* The static file handler rejects an invalid path. */ }
+    if (config.contentSecurityPolicy === defaultPolicy && staticPath?.startsWith("/scoring/"))
+      res.setHeader("Content-Security-Policy", scoringPolicy);
     if (cors(req, res, config.origins)) return;
     const started = performance.now();
     res.on("finish", () =>
       log.debug(`${req.method} ${url.pathname} ${res.statusCode} ${(performance.now() - started).toFixed(1)}ms`),
     );
     try {
+      if (url.pathname === "/scoring" && ["GET", "HEAD"].includes(req.method)) {
+        res.writeHead(308, { Location: `/scoring/${url.search}` });
+        res.end();
+        return;
+      }
       if (url.pathname.startsWith("/api/")) {
         res.setHeader("Cache-Control", "no-store");
         await api(req, res, url);

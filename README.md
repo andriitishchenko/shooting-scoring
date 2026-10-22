@@ -151,6 +151,12 @@ important variables:
 (3), and `REQUEST_TIMEOUT_MS`. The browser pages need an event code of 6
 characters. The API accepts 1 to 16 characters.
 
+## Scoring application
+
+Select **Scoring** on the home page to open the separate Archery Scoring
+application at `/scoring/`. Its files are in `frontend/scoring`.
+See [Scoring setup](SCORING.md) for the build and server changes.
+
 ## Tests
 
 ```sh

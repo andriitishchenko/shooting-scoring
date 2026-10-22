@@ -40,6 +40,13 @@ export const defaultPolicy = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+// The separate Flutter page uses WebAssembly and local image blobs.
+export const scoringPolicy = defaultPolicy
+  .replace("script-src 'self'", "script-src 'self' 'wasm-unsafe-eval'")
+  .replace("img-src 'self' data:", "img-src 'self' data: blob:")
+  .replace("connect-src 'self' ws: wss:", "connect-src 'self' ws: wss: https://fonts.gstatic.com")
+  + "; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:";
+
 // Read the settings from the environment and from `.env` in the service folder.
 // An environment variable has priority over `.env`. `overrides` has priority over both.
 export function loadConfig(overrides = {}, env = process.env) {

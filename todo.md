@@ -107,6 +107,12 @@ The Node.js server is now a separate service. It has its own database and does n
 
 72. After `session_rejected`, the viewer keeps the results on the screen and logs in again. After a network error, it tries again after 3 seconds, then 6, 12, and up to 30 seconds. If the server asks for a password, the viewer shows the password screen.
 
+### Separate application (2026-10-22)
+
+73. The home page has a **Scoring** link. It opens the Flutter application in
+    `frontend/scoring` at `/scoring/`. The server sends the WebAssembly content
+    type and a separate Content-Security-Policy. Test: `backend-node/tests/scoring-app.test.js`.
+
 ## Open
 
 - Unsent client scores can replace a host correction on a finished distance. The last write wins. The server accepts this by design.

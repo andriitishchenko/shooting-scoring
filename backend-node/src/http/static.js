@@ -14,7 +14,12 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
   ".ico": "image/vnd.microsoft.icon",
+  ".wasm": "application/wasm",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
   ".txt": "text/plain; charset=utf-8",
 };
 const COMPRESSIBLE = /^(text\/|application\/json|image\/svg)/;
